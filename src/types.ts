@@ -26,14 +26,31 @@ export type CheckReport = {
   checks: CheckItem[];
   serverInfo?: ServerInfo;
   tools: ToolInfo[];
+  resources: ResourceInfo[];
+  prompts: PromptInfo[];
   totalLatencyMs: number;
+};
+
+export type ResourceInfo = {
+  uri: string;
+  name?: string;
+  description?: string;
+};
+
+export type PromptInfo = {
+  name: string;
+  description?: string;
 };
 
 export type ProbeResult = {
   serverInfo: ServerInfo;
   tools: ToolInfo[];
+  resources: ResourceInfo[];
+  prompts: PromptInfo[];
   connectLatencyMs: number;
   toolsLatencyMs: number;
+  resourcesLatencyMs?: number;
+  promptsLatencyMs?: number;
 };
 
 export type ProbeOptions = {

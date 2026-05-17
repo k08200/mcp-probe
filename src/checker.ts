@@ -64,6 +64,24 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       });
     }
 
+    if (probe.resources.length > 0 || probe.resourcesLatencyMs !== undefined) {
+      checks.push({
+        name: 'Resources discovery',
+        status: 'pass',
+        message: `Found ${probe.resources.length} resource${probe.resources.length !== 1 ? 's' : ''}`,
+        latencyMs: probe.resourcesLatencyMs,
+      });
+    }
+
+    if (probe.prompts.length > 0 || probe.promptsLatencyMs !== undefined) {
+      checks.push({
+        name: 'Prompts discovery',
+        status: 'pass',
+        message: `Found ${probe.prompts.length} prompt${probe.prompts.length !== 1 ? 's' : ''}`,
+        latencyMs: probe.promptsLatencyMs,
+      });
+    }
+
     return {
       target: options.target,
       timestamp: new Date().toISOString(),
@@ -71,6 +89,8 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       checks,
       serverInfo: probe.serverInfo,
       tools: probe.tools,
+      resources: probe.resources,
+      prompts: probe.prompts,
       totalLatencyMs: Date.now() - startTime,
     };
   } catch (error) {
@@ -87,6 +107,8 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       overallStatus: 'fail',
       checks,
       tools: [],
+      resources: [],
+      prompts: [],
       totalLatencyMs: Date.now() - startTime,
     };
   }

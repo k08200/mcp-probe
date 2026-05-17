@@ -17,7 +17,7 @@ const DIVIDER = chalk.dim('─'.repeat(52));
 
 export function renderTerminal(report: CheckReport): void {
   console.log('');
-  console.log(chalk.bold.white('mcp-check') + '  ' + chalk.dim(report.target));
+  console.log(chalk.bold.white('mcp-probe') + '  ' + chalk.dim(report.target));
   console.log(DIVIDER);
 
   for (const check of report.checks) {
@@ -44,6 +44,25 @@ export function renderTerminal(report: CheckReport): void {
     for (const tool of report.tools) {
       const desc = tool.description ? chalk.dim(`  ${tool.description}`) : '';
       console.log(`    ${chalk.cyan('▸')} ${chalk.bold(tool.name)}${desc}`);
+    }
+  }
+
+  if (report.resources.length > 0) {
+    console.log('');
+    console.log(chalk.bold('  Resources'));
+    for (const res of report.resources) {
+      const label = res.name ?? res.uri;
+      const desc = res.description ? chalk.dim(`  ${res.description}`) : '';
+      console.log(`    ${chalk.magenta('▸')} ${chalk.bold(label)}${desc}`);
+    }
+  }
+
+  if (report.prompts.length > 0) {
+    console.log('');
+    console.log(chalk.bold('  Prompts'));
+    for (const prompt of report.prompts) {
+      const desc = prompt.description ? chalk.dim(`  ${prompt.description}`) : '';
+      console.log(`    ${chalk.yellow('▸')} ${chalk.bold(prompt.name)}${desc}`);
     }
   }
 

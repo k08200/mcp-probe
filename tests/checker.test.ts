@@ -12,8 +12,12 @@ const mockedProbe = vi.mocked(probeMcpServer);
 const makeProbeResult = (overrides = {}) => ({
   serverInfo: { name: 'test-server', version: '1.0.0', capabilities: ['tools'] },
   tools: [{ name: 'read_file', description: 'Reads a file' }],
+  resources: [],
+  prompts: [],
   connectLatencyMs: 120,
   toolsLatencyMs: 40,
+  resourcesLatencyMs: undefined,
+  promptsLatencyMs: undefined,
   ...overrides,
 });
 
@@ -117,6 +121,39 @@ describe('checkMcpServer', () => {
       args: ['--yes', '@scope/mcp-pkg'],
       timeoutMs: 8000,
     });
+  });
+
+  it('includes resources check when server has resources capability', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        serverInfo: { name: 'server', version: '1.0.0', capabilities: ['tools', 'resources'] },
+        resources: [{ uri: 'file:///readme.md', name: 'readme' }],
+        resourcesLatencyMs: 25,
+      })
+    );
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000 });
+
+    expect(report.resources).toHaveLength(1);
+    const check = report.checks.find((c) => c.name === 'Resources discovery');
+    expect(check?.status).toBe('pass');
+    expect(check?.latencyMs).toBe(25);
+  });
+
+  it('includes prompts check when server has prompts capability', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        serverInfo: { name: 'server', version: '1.0.0', capabilities: ['tools', 'prompts'] },
+        prompts: [{ name: 'summarize', description: 'Summarize text' }],
+        promptsLatencyMs: 30,
+      })
+    );
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000 });
+
+    expect(report.prompts).toHaveLength(1);
+    const check = report.checks.find((c) => c.name === 'Prompts discovery');
+    expect(check?.status).toBe('pass');
   });
 
   it('records timestamp and totalLatencyMs in report', async () => {
