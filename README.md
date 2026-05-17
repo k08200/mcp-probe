@@ -1,50 +1,54 @@
 # mcp-check
 
+[![CI](https://github.com/k08200/mcp-check/actions/workflows/ci.yml/badge.svg)](https://github.com/k08200/mcp-check/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/mcp-check)](https://www.npmjs.com/package/mcp-check)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/node/v/mcp-check)](package.json)
+
 **Quality checker for MCP servers.** Validates protocol handshake, tool discovery, and response latency in one command.
 
-```
-npx mcp-check @modelcontextprotocol/server-filesystem
+The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ servers and there was no way to know if they actually worked.
+
+```bash
+npx mcp-check @modelcontextprotocol/server-memory
 ```
 
 ```
-mcp-check  @modelcontextprotocol/server-filesystem
+mcp-check  @modelcontextprotocol/server-memory
 ────────────────────────────────────────────────────
   ✓  Target resolution
-     npx --yes @modelcontextprotocol/server-filesystem
-  ✓  MCP protocol handshake  120ms
-     filesystem v0.6.2
-  ✓  Tools discovery  40ms
-     Found 8 tools
+     npx --yes @modelcontextprotocol/server-memory
+  ✓  MCP protocol handshake  1392ms
+     memory-server v0.6.3
+  ✓  Tools discovery  33ms
+     Found 9 tools
   ✓  Tool schema validation
      All tool schemas are valid
 ────────────────────────────────────────────────────
-  Server   filesystem v0.6.2
+  Server   memory-server v0.6.3
   Caps     tools
 
   Tools
-    ▸ read_file  — Read the complete contents of a file
-    ▸ write_file  — Create a new file or overwrite an existing file
-    ▸ list_directory  — Get a listing of all files and directories
-    ▸ ...and 5 more
+    ▸ create_entities  Create multiple new entities in the knowledge graph
+    ▸ create_relations  Create multiple new relations between entities
+    ▸ add_observations  Add new observations to existing entities
+    ▸ delete_entities  Delete entities and their associated relations
+    ▸ read_graph  Read the entire knowledge graph
+    ▸ search_nodes  Search for nodes in the knowledge graph
+    ▸ ...and 3 more
 
-  ✓  PASS  412ms total
+  ✓  PASS  1455ms total
 ```
 
 ---
 
-## Why
-
-[awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ MCP servers. There was no way to know if they actually work until now.
-
-`mcp-check` is the `npm audit` for the MCP ecosystem — a single command that tells you if a server is production-ready.
-
 ## Install
 
 ```bash
-# One-shot (no install)
+# No install needed
 npx mcp-check <target>
 
-# Global install
+# Or install globally
 npm install -g mcp-check
 ```
 
@@ -52,18 +56,18 @@ npm install -g mcp-check
 
 ```bash
 # Check an npm package
-mcp-check @modelcontextprotocol/server-filesystem
+mcp-check @modelcontextprotocol/server-memory
 
-# Check a scoped package
-mcp-check @upstash/mcp-server-redis
+# Check a server that requires arguments (e.g. directories to serve)
+mcp-check @modelcontextprotocol/server-filesystem /tmp /Users/me/projects
 
-# Check a local server
+# Check a local server file
 mcp-check ./my-server.js
 
-# JSON output (for CI)
+# JSON output for CI / scripting
 mcp-check @scope/server --output json
 
-# Custom timeout
+# Custom timeout (default: 10000ms)
 mcp-check @scope/server --timeout 30000
 ```
 
@@ -71,9 +75,9 @@ mcp-check @scope/server --timeout 30000
 
 | Check | Description |
 |-------|-------------|
-| **Target resolution** | Can the package be found and spawned? |
-| **MCP protocol handshake** | Does the server respond to `initialize`? |
-| **Tools discovery** | Does `tools/list` return results? |
+| **Target resolution** | Can the package be located and spawned? |
+| **MCP protocol handshake** | Does the server respond to `initialize`? Measures connect latency. |
+| **Tools discovery** | Does `tools/list` return results? Measures list latency. |
 | **Tool schema validation** | Are all tool schemas well-formed? |
 
 ## Exit codes
@@ -89,40 +93,52 @@ mcp-check @scope/server --timeout 30000
 # .github/workflows/mcp-check.yml
 - name: Validate MCP server
   run: npx mcp-check @your-org/your-mcp-server
+  timeout-minutes: 2
 ```
 
 ## JSON output
 
 ```bash
-mcp-check @scope/server --output json
+mcp-check @modelcontextprotocol/server-memory --output json
 ```
 
 ```json
 {
-  "target": "@scope/server",
+  "target": "@modelcontextprotocol/server-memory",
   "timestamp": "2026-05-17T12:00:00.000Z",
   "overallStatus": "pass",
   "checks": [
-    { "name": "MCP protocol handshake", "status": "pass", "latencyMs": 120 }
+    { "name": "Target resolution", "status": "pass", "message": "npx --yes @modelcontextprotocol/server-memory" },
+    { "name": "MCP protocol handshake", "status": "pass", "message": "memory-server v0.6.3", "latencyMs": 1392 },
+    { "name": "Tools discovery", "status": "pass", "message": "Found 9 tools", "latencyMs": 33 },
+    { "name": "Tool schema validation", "status": "pass", "message": "All tool schemas are valid" }
   ],
-  "serverInfo": { "name": "my-server", "version": "1.0.0", "capabilities": ["tools"] },
-  "tools": [{ "name": "read_file", "description": "..." }],
-  "totalLatencyMs": 412
+  "serverInfo": { "name": "memory-server", "version": "0.6.3", "capabilities": ["tools"] },
+  "tools": [{ "name": "create_entities", "description": "Create multiple new entities in the knowledge graph" }],
+  "totalLatencyMs": 1455
 }
 ```
+
+## Status values
+
+| Status | Icon | Meaning |
+|--------|------|---------|
+| `pass` | ✓ | Check succeeded |
+| `warn` | ⚠ | Non-fatal issue (e.g. no tools registered) |
+| `fail` | ✗ | Check failed — exits with code 1 |
 
 ## Roadmap
 
 - [ ] `resources/list` and `prompts/list` checks
 - [ ] HTTP/SSE transport support
-- [ ] Batch checking from a list file (`mcp-check --list servers.txt`)
-- [ ] Badge generation for README (`mcp-check --badge`)
-- [ ] Weekly CI for awesome-mcp-servers quality report
+- [ ] Batch checking from a file (`mcp-check --list servers.txt`)
+- [ ] Badge generation (`mcp-check --badge > badge.json`)
+- [ ] Weekly quality report for awesome-mcp-servers
 
 ## Contributing
 
-Issues and PRs welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Issues and PRs are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)
