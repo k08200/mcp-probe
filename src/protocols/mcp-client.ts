@@ -71,6 +71,23 @@ function isAuthError(message: string, notErrorCodes?: number[]): boolean {
   return false;
 }
 
+function toolResultErrorMessage(result: unknown): string | undefined {
+  if (!result || typeof result !== 'object') return undefined;
+  const toolResult = result as { isError?: unknown; content?: unknown };
+  if (toolResult.isError !== true) return undefined;
+
+  if (!Array.isArray(toolResult.content)) return 'Tool returned an error result';
+  const textParts = toolResult.content
+    .map((part) => {
+      if (!part || typeof part !== 'object') return undefined;
+      const maybeText = (part as { text?: unknown }).text;
+      return typeof maybeText === 'string' ? maybeText : undefined;
+    })
+    .filter((part): part is string => Boolean(part));
+
+  return textParts.join('\n') || 'Tool returned an error result';
+}
+
 export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult> {
   const transport = new StdioClientTransport({
     command: options.command,
@@ -145,11 +162,23 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
 
         const start = Date.now();
         try {
-          await withTimeout(
+          const result = await withTimeout(
             client.callTool({ name: tool.name, arguments: input }),
             options.timeoutMs,
             `callTool(${tool.name})`
           );
+          const toolError = toolResultErrorMessage(result);
+          if (toolError) {
+            const status = isAuthError(toolError, notErrorCodes) ? 'warn' : 'fail';
+            toolCallResults.push({
+              tool: tool.name,
+              status,
+              latencyMs: Date.now() - start,
+              error: toolError,
+              source,
+            });
+            continue;
+          }
           toolCallResults.push({ tool: tool.name, status: 'pass', latencyMs: Date.now() - start, source });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
