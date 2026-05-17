@@ -1,20 +1,20 @@
-# mcp-check
+# mcp-probe
 
-[![CI](https://github.com/k08200/mcp-check/actions/workflows/ci.yml/badge.svg)](https://github.com/k08200/mcp-check/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/mcp-check)](https://www.npmjs.com/package/mcp-check)
+[![CI](https://github.com/k08200/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/k08200/mcp-probe/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/mcp-probe)](https://www.npmjs.com/package/mcp-probe)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/node/v/mcp-check)](package.json)
+[![Node.js](https://img.shields.io/node/v/mcp-probe)](package.json)
 
 **Quality checker for MCP servers.** Validates protocol handshake, tool discovery, and response latency in one command.
 
 The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ servers and there was no way to know if they actually worked.
 
 ```bash
-npx mcp-check @modelcontextprotocol/server-memory
+npx mcp-probe @modelcontextprotocol/server-memory
 ```
 
 ```
-mcp-check  @modelcontextprotocol/server-memory
+mcp-probe  @modelcontextprotocol/server-memory
 ────────────────────────────────────────────────────
   ✓  Target resolution
      npx --yes @modelcontextprotocol/server-memory
@@ -46,29 +46,29 @@ mcp-check  @modelcontextprotocol/server-memory
 
 ```bash
 # No install needed
-npx mcp-check <target>
+npx mcp-probe <target>
 
 # Or install globally
-npm install -g mcp-check
+npm install -g mcp-probe
 ```
 
 ## Usage
 
 ```bash
 # Check an npm package
-mcp-check @modelcontextprotocol/server-memory
+mcp-probe @modelcontextprotocol/server-memory
 
 # Check a server that requires arguments (e.g. directories to serve)
-mcp-check @modelcontextprotocol/server-filesystem /tmp /Users/me/projects
+mcp-probe @modelcontextprotocol/server-filesystem /tmp /Users/me/projects
 
 # Check a local server file
-mcp-check ./my-server.js
+mcp-probe ./my-server.js
 
 # JSON output for CI / scripting
-mcp-check @scope/server --output json
+mcp-probe @scope/server --output json
 
 # Custom timeout (default: 10000ms)
-mcp-check @scope/server --timeout 30000
+mcp-probe @scope/server --timeout 30000
 ```
 
 ## What it checks
@@ -90,16 +90,16 @@ mcp-check @scope/server --timeout 30000
 ## CI integration
 
 ```yaml
-# .github/workflows/mcp-check.yml
+# .github/workflows/mcp-probe.yml
 - name: Validate MCP server
-  run: npx mcp-check @your-org/your-mcp-server
+  run: npx mcp-probe @your-org/your-mcp-server
   timeout-minutes: 2
 ```
 
 ## JSON output
 
 ```bash
-mcp-check @modelcontextprotocol/server-memory --output json
+mcp-probe @modelcontextprotocol/server-memory --output json
 ```
 
 ```json
@@ -131,8 +131,8 @@ mcp-check @modelcontextprotocol/server-memory --output json
 
 - [ ] `resources/list` and `prompts/list` checks
 - [ ] HTTP/SSE transport support
-- [ ] Batch checking from a file (`mcp-check --list servers.txt`)
-- [ ] Badge generation (`mcp-check --badge > badge.json`)
+- [ ] Batch checking from a file (`mcp-probe --list servers.txt`)
+- [ ] Badge generation (`mcp-probe --badge > badge.json`)
 - [ ] Weekly quality report for awesome-mcp-servers
 
 ## Contributing

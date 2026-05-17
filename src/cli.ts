@@ -8,7 +8,7 @@ import { renderJson } from './reporters/json-reporter.js';
 const program = new Command();
 
 program
-  .name('mcp-check')
+  .name('mcp-probe')
   .description('Quality checker for MCP servers')
   .version('0.1.0')
   .argument('<target>', 'npm package, npx-style command, or local file path')

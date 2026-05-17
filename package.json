@@ -1,10 +1,10 @@
 {
-  "name": "mcp-check",
+  "name": "mcp-probe",
   "version": "0.1.0",
   "description": "Quality checker for MCP servers — validates protocol handshake, tool discovery, and response latency",
   "type": "module",
   "bin": {
-    "mcp-check": "./dist/cli.js"
+    "mcp-probe": "./dist/cli.js"
   },
   "files": ["dist"],
   "scripts": {
@@ -19,13 +19,13 @@
   "keywords": ["mcp", "model-context-protocol", "ai", "llm", "cli", "testing", "validation", "inspector", "checker"],
   "author": "k08200",
   "license": "MIT",
-  "homepage": "https://github.com/k08200/mcp-check#readme",
+  "homepage": "https://github.com/k08200/mcp-probe#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/k08200/mcp-check.git"
+    "url": "https://github.com/k08200/mcp-probe.git"
   },
   "bugs": {
-    "url": "https://github.com/k08200/mcp-check/issues"
+    "url": "https://github.com/k08200/mcp-probe/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

@@ -1,10 +1,10 @@
-# Contributing to mcp-check
+# Contributing to mcp-probe
 
 ## Setup
 
 ```bash
-git clone https://github.com/k08200/mcp-check.git
-cd mcp-check
+git clone https://github.com/k08200/mcp-probe.git
+cd mcp-probe
 npm install
 ```
 

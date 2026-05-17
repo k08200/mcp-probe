@@ -18,7 +18,7 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
   });
 
   const client = new Client(
-    { name: 'mcp-check', version: '0.1.0' },
+    { name: 'mcp-probe', version: '0.1.0' },
     { capabilities: {} }
   );
 
