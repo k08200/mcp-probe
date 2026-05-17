@@ -5,6 +5,7 @@ type CheckOptions = {
   target: string;
   serverArgs?: string[];
   timeoutMs: number;
+  probeTools?: boolean;
 };
 
 export function resolveTarget(target: string): { command: string; args: string[] } {
@@ -34,7 +35,12 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
   });
 
   try {
-    const probe = await probeMcpServer({ command, args, timeoutMs: options.timeoutMs });
+    const probe = await probeMcpServer({
+      command,
+      args,
+      timeoutMs: options.timeoutMs,
+      probeTools: options.probeTools,
+    });
 
     checks.push({
       name: 'MCP protocol handshake',
@@ -82,6 +88,22 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       });
     }
 
+    if (probe.toolCallResults && probe.toolCallResults.length > 0) {
+      const failed = probe.toolCallResults.filter((r) => r.status === 'fail');
+      const warned = probe.toolCallResults.filter((r) => r.status === 'warn');
+      const passed = probe.toolCallResults.filter((r) => r.status === 'pass');
+      const status: CheckStatus = failed.length > 0 ? 'fail' : warned.length > 0 ? 'warn' : 'pass';
+      const parts: string[] = [];
+      if (passed.length > 0) parts.push(`${passed.length} passed`);
+      if (warned.length > 0) parts.push(`${warned.length} auth/permission errors`);
+      if (failed.length > 0) parts.push(`${failed.length} failed`);
+      checks.push({
+        name: 'Tool call dry-run',
+        status,
+        message: parts.join(', '),
+      });
+    }
+
     return {
       target: options.target,
       timestamp: new Date().toISOString(),
@@ -91,6 +113,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       tools: probe.tools,
       resources: probe.resources,
       prompts: probe.prompts,
+      toolCallResults: probe.toolCallResults,
       totalLatencyMs: Date.now() - startTime,
     };
   } catch (error) {

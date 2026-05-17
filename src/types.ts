@@ -13,6 +13,13 @@ export type ToolInfo = {
   inputSchema?: unknown;
 };
 
+export type ToolCallResult = {
+  tool: string;
+  status: CheckStatus;
+  latencyMs: number;
+  error?: string;
+};
+
 export type ServerInfo = {
   name: string;
   version: string;
@@ -28,6 +35,7 @@ export type CheckReport = {
   tools: ToolInfo[];
   resources: ResourceInfo[];
   prompts: PromptInfo[];
+  toolCallResults?: ToolCallResult[];
   totalLatencyMs: number;
 };
 
@@ -51,10 +59,12 @@ export type ProbeResult = {
   toolsLatencyMs: number;
   resourcesLatencyMs?: number;
   promptsLatencyMs?: number;
+  toolCallResults?: ToolCallResult[];
 };
 
 export type ProbeOptions = {
   command: string;
   args: string[];
   timeoutMs: number;
+  probeTools?: boolean;
 };

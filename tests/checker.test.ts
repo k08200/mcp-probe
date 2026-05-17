@@ -116,11 +116,62 @@ describe('checkMcpServer', () => {
 
     await checkMcpServer({ target: '@scope/mcp-pkg', timeoutMs: 8000 });
 
-    expect(mockedProbe).toHaveBeenCalledWith({
+    expect(mockedProbe).toHaveBeenCalledWith(expect.objectContaining({
       command: 'npx',
       args: ['--yes', '@scope/mcp-pkg'],
       timeoutMs: 8000,
-    });
+    }));
+  });
+
+  it('forwards probeTools flag to probe', async () => {
+    mockedProbe.mockResolvedValue(makeProbeResult());
+
+    await checkMcpServer({ target: '@scope/mcp-pkg', timeoutMs: 8000, probeTools: true });
+
+    expect(mockedProbe).toHaveBeenCalledWith(expect.objectContaining({ probeTools: true }));
+  });
+
+  it('adds tool call dry-run check when toolCallResults present', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        toolCallResults: [
+          { tool: 'read_file', status: 'pass', latencyMs: 50 },
+          { tool: 'write_file', status: 'fail', latencyMs: 10, error: 'Permission denied' },
+        ],
+      })
+    );
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000, probeTools: true });
+
+    const check = report.checks.find((c) => c.name === 'Tool call dry-run');
+    expect(check).toBeDefined();
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('1 passed');
+    expect(check?.message).toContain('1 failed');
+  });
+
+  it('tool call dry-run is warn when only auth errors occur', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        toolCallResults: [
+          { tool: 'search', status: 'warn', latencyMs: 20, error: '401 Unauthorized' },
+        ],
+      })
+    );
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000, probeTools: true });
+
+    const check = report.checks.find((c) => c.name === 'Tool call dry-run');
+    expect(check?.status).toBe('warn');
+    expect(check?.message).toContain('auth/permission');
+  });
+
+  it('does not add dry-run check when probeTools is false', async () => {
+    mockedProbe.mockResolvedValue(makeProbeResult());
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000 });
+
+    expect(report.checks.find((c) => c.name === 'Tool call dry-run')).toBeUndefined();
   });
 
   it('includes resources check when server has resources capability', async () => {

@@ -66,6 +66,17 @@ export function renderTerminal(report: CheckReport): void {
     }
   }
 
+  if (report.toolCallResults && report.toolCallResults.length > 0) {
+    console.log('');
+    console.log(chalk.bold('  Tool Call Dry-run'));
+    for (const r of report.toolCallResults) {
+      const icon = ICONS[r.status];
+      const latency = chalk.dim(` ${r.latencyMs}ms`);
+      const err = r.error ? chalk.dim(`  — ${r.error.slice(0, 80)}`) : '';
+      console.log(`    ${icon} ${chalk.bold(r.tool)}${latency}${err}`);
+    }
+  }
+
   console.log('');
   const status = report.overallStatus;
   const label = COLORS[status](chalk.bold(status.toUpperCase()));
