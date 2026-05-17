@@ -1,12 +1,14 @@
 {
-  "name": "mcp-probe",
+  "name": "@k08200/mcp-probe",
   "version": "0.1.0",
   "description": "Quality checker for MCP servers — validates protocol handshake, tool discovery, and response latency",
   "type": "module",
   "bin": {
-    "mcp-probe": "./dist/cli.js"
+    "mcp-probe": "dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
@@ -16,13 +18,23 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "model-context-protocol", "ai", "llm", "cli", "testing", "validation", "inspector", "checker"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "llm",
+    "cli",
+    "testing",
+    "validation",
+    "inspector",
+    "checker"
+  ],
   "author": "k08200",
   "license": "MIT",
   "homepage": "https://github.com/k08200/mcp-probe#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/k08200/mcp-probe.git"
+    "url": "git+https://github.com/k08200/mcp-probe.git"
   },
   "bugs": {
     "url": "https://github.com/k08200/mcp-probe/issues"

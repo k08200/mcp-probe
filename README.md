@@ -10,7 +10,7 @@
 The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ servers and there was no way to know if they actually worked.
 
 ```bash
-npx mcp-probe @modelcontextprotocol/server-memory
+npx @k08200/mcp-probe @modelcontextprotocol/server-memory
 ```
 
 ```
@@ -46,10 +46,10 @@ mcp-probe  @modelcontextprotocol/server-memory
 
 ```bash
 # No install needed
-npx mcp-probe <target>
+npx @k08200/mcp-probe <target>
 
 # Or install globally
-npm install -g mcp-probe
+npm install -g @k08200/mcp-probe
 ```
 
 ## Usage
@@ -92,7 +92,7 @@ mcp-probe @scope/server --timeout 30000
 ```yaml
 # .github/workflows/mcp-probe.yml
 - name: Validate MCP server
-  run: npx mcp-probe @your-org/your-mcp-server
+  run: npx @k08200/mcp-probe @your-org/your-mcp-server
   timeout-minutes: 2
 ```
 
