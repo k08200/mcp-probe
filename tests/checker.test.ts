@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { checkMcpServer, resolveTarget } from '../src/checker.js';
 
 vi.mock('../src/protocols/mcp-client.js', () => ({
@@ -191,14 +194,69 @@ describe('checkMcpServer', () => {
     expect(check?.message).toContain('1 auto');
   });
 
-  it('passes toolsFile to probe via sidecar', async () => {
+  it('fails cleanly when an explicit toolsFile is missing', async () => {
     mockedProbe.mockResolvedValue(makeProbeResult());
 
-    await checkMcpServer({ target: '@test/server', timeoutMs: 5000, toolsFile: '/nonexistent.json' });
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000, toolsFile: '/nonexistent.json' });
 
-    // loadSidecar throws for explicit missing file — error surfaces in handshake check
-    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000 });
-    expect(report.overallStatus).toBe('pass');
+    expect(report.overallStatus).toBe('fail');
+    expect(report.checks.find((c) => c.name === 'Tool sidecar')?.message).toContain(
+      'Cannot read tools file'
+    );
+    expect(mockedProbe).not.toHaveBeenCalled();
+  });
+
+  it('loads toolsFile and implies probeTools', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-test-'));
+    const toolsFile = join(dir, 'tools.json');
+    writeFileSync(
+      toolsFile,
+      JSON.stringify({
+        tools: {
+          search: {
+            input: { query: 'hello' },
+            expect: { not_error_code: [401, 403] },
+          },
+        },
+      })
+    );
+    mockedProbe.mockResolvedValue(makeProbeResult());
+
+    try {
+      await checkMcpServer({ target: '@test/server', timeoutMs: 5000, toolsFile });
+
+      expect(mockedProbe).toHaveBeenCalledWith(expect.objectContaining({
+        probeTools: true,
+        sidecar: {
+          tools: {
+            search: {
+              input: { query: 'hello' },
+              expect: { not_error_code: [401, 403] },
+            },
+          },
+        },
+      }));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails cleanly for invalid toolsFile schema', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-test-'));
+    const toolsFile = join(dir, 'tools.json');
+    writeFileSync(toolsFile, JSON.stringify({ tools: { search: { input: [] } } }));
+
+    try {
+      const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000, toolsFile });
+
+      expect(report.overallStatus).toBe('fail');
+      expect(report.checks.find((c) => c.name === 'Tool sidecar')?.message).toContain(
+        'search.input must be an object'
+      );
+      expect(mockedProbe).not.toHaveBeenCalled();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('includes resources check when server has resources capability', async () => {

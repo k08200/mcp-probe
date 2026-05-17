@@ -10,7 +10,7 @@ const program = new Command();
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('0.1.0')
+  .version('0.3.1')
   .argument('<target>', 'npm package, npx-style command, or local file path')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
@@ -23,7 +23,16 @@ program
     opts: { output: string; timeout: string; probeTools?: boolean; toolsFile?: string }
   ) => {
     const timeoutMs = parseInt(opts.timeout, 10);
-    const probeTools = opts.probeTools ?? !!opts.toolsFile;
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      console.error('Timeout must be a positive integer.');
+      process.exit(1);
+    }
+    if (!['terminal', 'json'].includes(opts.output)) {
+      console.error('Output format must be "terminal" or "json".');
+      process.exit(1);
+    }
+
+    const probeTools = opts.probeTools || !!opts.toolsFile;
     const toolsFile = opts.toolsFile;
 
     if (opts.output === 'json') {

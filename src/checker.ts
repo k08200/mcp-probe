@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { probeMcpServer } from './protocols/mcp-client.js';
 import type { CheckItem, CheckReport, CheckStatus, ToolSidecar } from './types.js';
 
@@ -21,14 +21,43 @@ export function resolveTarget(target: string): { command: string; args: string[]
 
 function loadSidecar(toolsFile?: string): ToolSidecar | undefined {
   const path = toolsFile ?? SIDECAR_FILENAME;
-  try {
-    const raw = readFileSync(path, 'utf8');
-    return JSON.parse(raw) as ToolSidecar;
-  } catch {
-    // If no explicit file was given, missing sidecar is normal
+  if (!existsSync(path)) {
     if (!toolsFile) return undefined;
     throw new Error(`Cannot read tools file: ${path}`);
   }
+
+  let parsed: unknown;
+  try {
+    const raw = readFileSync(path, 'utf8');
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Invalid tools file JSON: ${path}`);
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error(`Invalid tools file: ${path} must be an object`);
+  }
+
+  const sidecar = parsed as Partial<ToolSidecar>;
+  if (!sidecar.tools || typeof sidecar.tools !== 'object' || Array.isArray(sidecar.tools)) {
+    throw new Error(`Invalid tools file: ${path} must contain a tools object`);
+  }
+
+  for (const [toolName, entry] of Object.entries(sidecar.tools)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error(`Invalid tools file: ${toolName} entry must be an object`);
+    }
+    const toolEntry = entry as { input?: unknown; expect?: { not_error_code?: unknown } };
+    if (!toolEntry.input || typeof toolEntry.input !== 'object' || Array.isArray(toolEntry.input)) {
+      throw new Error(`Invalid tools file: ${toolName}.input must be an object`);
+    }
+    const codes = toolEntry.expect?.not_error_code;
+    if (codes !== undefined && (!Array.isArray(codes) || !codes.every((c) => typeof c === 'number'))) {
+      throw new Error(`Invalid tools file: ${toolName}.expect.not_error_code must be a number array`);
+    }
+  }
+
+  return sidecar as ToolSidecar;
 }
 
 function deriveOverallStatus(checks: CheckItem[]): CheckStatus {
@@ -43,6 +72,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
   const resolved = resolveTarget(options.target);
   const args = [...resolved.args, ...(options.serverArgs ?? [])];
   const { command } = resolved;
+  const probeTools = options.probeTools || Boolean(options.toolsFile);
 
   checks.push({
     name: 'Target resolution',
@@ -50,14 +80,13 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
     message: `${command} ${args.join(' ')}`,
   });
 
-  const sidecar = options.probeTools ? loadSidecar(options.toolsFile) : undefined;
-
   try {
+    const sidecar = probeTools ? loadSidecar(options.toolsFile) : undefined;
     const probe = await probeMcpServer({
       command,
       args,
       timeoutMs: options.timeoutMs,
-      probeTools: options.probeTools,
+      probeTools,
       sidecar,
     });
 
@@ -139,8 +168,9 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const isSidecarError = message.includes('tools file');
     checks.push({
-      name: 'MCP protocol handshake',
+      name: isSidecarError ? 'Tool sidecar' : 'MCP protocol handshake',
       status: 'fail',
       message,
     });

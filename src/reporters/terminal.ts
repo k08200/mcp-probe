@@ -72,8 +72,9 @@ export function renderTerminal(report: CheckReport): void {
     for (const r of report.toolCallResults) {
       const icon = ICONS[r.status];
       const latency = chalk.dim(` ${r.latencyMs}ms`);
+      const source = chalk.dim(` [${r.source}]`);
       const err = r.error ? chalk.dim(`  — ${r.error.slice(0, 80)}`) : '';
-      console.log(`    ${icon} ${chalk.bold(r.tool)}${latency}${err}`);
+      console.log(`    ${icon} ${chalk.bold(r.tool)}${source}${latency}${err}`);
     }
   }
 

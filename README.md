@@ -1,11 +1,11 @@
 # mcp-probe
 
 [![CI](https://github.com/k08200/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/k08200/mcp-probe/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/mcp-probe)](https://www.npmjs.com/package/mcp-probe)
+[![npm](https://img.shields.io/npm/v/@k08200/mcp-probe)](https://www.npmjs.com/package/@k08200/mcp-probe)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/node/v/mcp-probe)](package.json)
+[![Node.js](https://img.shields.io/node/v/@k08200/mcp-probe)](package.json)
 
-**Quality checker for MCP servers.** Validates protocol handshake, tool discovery, and response latency in one command.
+**Quality checker for MCP servers.** Validates protocol handshake, discovery, optional tool-call dry-runs, and response latency in one command.
 
 The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ servers and there was no way to know if they actually worked.
 
@@ -69,6 +69,12 @@ mcp-probe @scope/server --output json
 
 # Custom timeout (default: 10000ms)
 mcp-probe @scope/server --timeout 30000
+
+# Call tools with generated minimal inputs
+mcp-probe @scope/server --probe-tools
+
+# Call tools with real sample inputs from a sidecar file
+mcp-probe @scope/server --tools-file .mcp-probe.json
 ```
 
 ## What it checks
@@ -79,6 +85,45 @@ mcp-probe @scope/server --timeout 30000
 | **MCP protocol handshake** | Does the server respond to `initialize`? Measures connect latency. |
 | **Tools discovery** | Does `tools/list` return results? Measures list latency. |
 | **Tool schema validation** | Are all tool schemas well-formed? |
+| **Resources discovery** | Runs `resources/list` when the server advertises resources. |
+| **Prompts discovery** | Runs `prompts/list` when the server advertises prompts. |
+| **Tool call dry-run** | Optional `tools/call` checks via `--probe-tools` or `--tools-file`. |
+
+## Tool call dry-runs
+
+Discovery proves that a server starts and registers tools. It does **not** prove that the tools actually work in an agent loop. Use `--probe-tools` to call every discovered tool.
+
+By default, mcp-probe generates minimal inputs from each tool schema. That catches broken call paths, but real CI gates should prefer a sidecar file with meaningful sample inputs:
+
+```json
+{
+  "tools": {
+    "logs_query": {
+      "input": {
+        "query": "service:web status:error",
+        "timeframe": "1h"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    }
+  }
+}
+```
+
+Save this as `.mcp-probe.json` in your project root and run:
+
+```bash
+mcp-probe @your-org/datadog-mcp --probe-tools
+```
+
+Or pass an explicit path:
+
+```bash
+mcp-probe @your-org/datadog-mcp --tools-file ./ci/mcp-tools.json
+```
+
+Sidecar inputs are used first; generated minimal inputs are fallback only. Auth and permission failures such as 401/403 are surfaced as warnings so CI can distinguish "OAuth handoff needed" from transport or runtime failure.
 
 ## Exit codes
 
@@ -99,7 +144,7 @@ mcp-probe @scope/server --timeout 30000
 ## JSON output
 
 ```bash
-mcp-probe @modelcontextprotocol/server-memory --output json
+mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 ```
 
 ```json
@@ -111,10 +156,14 @@ mcp-probe @modelcontextprotocol/server-memory --output json
     { "name": "Target resolution", "status": "pass", "message": "npx --yes @modelcontextprotocol/server-memory" },
     { "name": "MCP protocol handshake", "status": "pass", "message": "memory-server v0.6.3", "latencyMs": 1392 },
     { "name": "Tools discovery", "status": "pass", "message": "Found 9 tools", "latencyMs": 33 },
-    { "name": "Tool schema validation", "status": "pass", "message": "All tool schemas are valid" }
+    { "name": "Tool schema validation", "status": "pass", "message": "All tool schemas are valid" },
+    { "name": "Tool call dry-run", "status": "pass", "message": "9 passed (2 sidecar, 7 auto)" }
   ],
   "serverInfo": { "name": "memory-server", "version": "0.6.3", "capabilities": ["tools"] },
   "tools": [{ "name": "create_entities", "description": "Create multiple new entities in the knowledge graph" }],
+  "toolCallResults": [
+    { "tool": "read_graph", "status": "pass", "latencyMs": 41, "source": "auto" }
+  ],
   "totalLatencyMs": 1455
 }
 ```
@@ -129,11 +178,11 @@ mcp-probe @modelcontextprotocol/server-memory --output json
 
 ## Roadmap
 
-- [ ] `resources/list` and `prompts/list` checks
 - [ ] HTTP/SSE transport support
 - [ ] Batch checking from a file (`mcp-probe --list servers.txt`)
 - [ ] Badge generation (`mcp-probe --badge > badge.json`)
-- [ ] Weekly quality report for awesome-mcp-servers
+- [ ] Structured stderr conventions for MCP server authors
+- [ ] Server-specific recipe examples for Datadog, Supabase, and Gmail MCP servers
 
 ## Contributing
 
