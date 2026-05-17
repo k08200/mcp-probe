@@ -19,16 +19,10 @@ function isStderrNoise(line: string): boolean {
 
 function firstMeaningfulLine(text: string): string {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-
-  // Filter out known startup warnings before looking for errors
   const nonNoise = lines.filter((l) => !isStderrNoise(l));
   const target = nonNoise.length > 0 ? nonNoise : lines;
-
-  // Prefer explicit "Error: ..." lines
   const errorLine = target.find((l) => /^Error:/i.test(l));
   if (errorLine) return errorLine;
-
-  // Skip stack frames, node internals, carets, bare code fragments
   const skip = /^at |^node:|^\^$|^const |^throw |^Require stack/;
   return target.find((l) => !skip.test(l) && l.length > 3) ?? target[0] ?? text;
 }
@@ -40,16 +34,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   return Promise.race([promise, timeout]);
 }
 
-// Generate minimal valid inputs from a JSON Schema to exercise the tool call path
+// Fallback: generate minimal inputs from JSON Schema when no sidecar entry exists
 function generateMinimalInput(schema: unknown): Record<string, unknown> {
   if (!schema || typeof schema !== 'object') return {};
   const s = schema as Record<string, unknown>;
   const props = s['properties'] as Record<string, unknown> | undefined;
   if (!props) return {};
-
   const required = (s['required'] as string[] | undefined) ?? [];
   const input: Record<string, unknown> = {};
-
   for (const key of required) {
     const prop = props[key] as Record<string, unknown> | undefined;
     if (!prop) continue;
@@ -63,8 +55,15 @@ function generateMinimalInput(schema: unknown): Record<string, unknown> {
       default:        input[key] = null;
     }
   }
-
   return input;
+}
+
+function isAuthError(message: string, notErrorCodes?: number[]): boolean {
+  if (/401|403|unauthorized|forbidden/i.test(message)) return true;
+  if (notErrorCodes) {
+    return notErrorCodes.some((code) => message.includes(String(code)));
+  }
+  return false;
 }
 
 export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult> {
@@ -105,7 +104,6 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
 
   let resourcesLatencyMs: number | undefined;
   let promptsLatencyMs: number | undefined;
-
   const resourcesList: ProbeResult['resources'] = [];
   const promptsList: ProbeResult['prompts'] = [];
 
@@ -127,12 +125,17 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
     }
   }
 
-  // Tool dry-run: call each tool with minimal auto-generated inputs
   let toolCallResults: ToolCallResult[] | undefined;
   if (options.probeTools && toolsResult.tools.length > 0) {
     toolCallResults = [];
     for (const tool of toolsResult.tools) {
-      const input = generateMinimalInput(tool.inputSchema);
+      const sidecarEntry = options.sidecar?.tools[tool.name];
+
+      // Sidecar input beats auto-generated — it actually reaches the call path
+      const input = sidecarEntry?.input ?? generateMinimalInput(tool.inputSchema);
+      const source: ToolCallResult['source'] = sidecarEntry ? 'sidecar' : 'auto';
+      const notErrorCodes = sidecarEntry?.expect?.not_error_code;
+
       const start = Date.now();
       try {
         await withTimeout(
@@ -140,16 +143,16 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
           options.timeoutMs,
           `callTool(${tool.name})`
         );
-        toolCallResults.push({ tool: tool.name, status: 'pass', latencyMs: Date.now() - start });
+        toolCallResults.push({ tool: tool.name, status: 'pass', latencyMs: Date.now() - start, source });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        // Auth errors are expected during dry-run — surface as warn not fail
-        const isAuthError = /401|403|unauthorized|forbidden|auth/i.test(msg);
+        const status = isAuthError(msg, notErrorCodes) ? 'warn' : 'fail';
         toolCallResults.push({
           tool: tool.name,
-          status: isAuthError ? 'warn' : 'fail',
+          status,
           latencyMs: Date.now() - start,
           error: msg,
+          source,
         });
       }
     }

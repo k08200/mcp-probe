@@ -1,11 +1,15 @@
+import { readFileSync } from 'fs';
 import { probeMcpServer } from './protocols/mcp-client.js';
-import type { CheckItem, CheckReport, CheckStatus } from './types.js';
+import type { CheckItem, CheckReport, CheckStatus, ToolSidecar } from './types.js';
+
+const SIDECAR_FILENAME = '.mcp-probe.json';
 
 type CheckOptions = {
   target: string;
   serverArgs?: string[];
   timeoutMs: number;
   probeTools?: boolean;
+  toolsFile?: string;
 };
 
 export function resolveTarget(target: string): { command: string; args: string[] } {
@@ -13,6 +17,18 @@ export function resolveTarget(target: string): { command: string; args: string[]
     return { command: 'node', args: [target] };
   }
   return { command: 'npx', args: ['--yes', target] };
+}
+
+function loadSidecar(toolsFile?: string): ToolSidecar | undefined {
+  const path = toolsFile ?? SIDECAR_FILENAME;
+  try {
+    const raw = readFileSync(path, 'utf8');
+    return JSON.parse(raw) as ToolSidecar;
+  } catch {
+    // If no explicit file was given, missing sidecar is normal
+    if (!toolsFile) return undefined;
+    throw new Error(`Cannot read tools file: ${path}`);
+  }
 }
 
 function deriveOverallStatus(checks: CheckItem[]): CheckStatus {
@@ -34,12 +50,15 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
     message: `${command} ${args.join(' ')}`,
   });
 
+  const sidecar = options.probeTools ? loadSidecar(options.toolsFile) : undefined;
+
   try {
     const probe = await probeMcpServer({
       command,
       args,
       timeoutMs: options.timeoutMs,
       probeTools: options.probeTools,
+      sidecar,
     });
 
     checks.push({
@@ -92,15 +111,17 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       const failed = probe.toolCallResults.filter((r) => r.status === 'fail');
       const warned = probe.toolCallResults.filter((r) => r.status === 'warn');
       const passed = probe.toolCallResults.filter((r) => r.status === 'pass');
+      const sidecarCount = probe.toolCallResults.filter((r) => r.source === 'sidecar').length;
       const status: CheckStatus = failed.length > 0 ? 'fail' : warned.length > 0 ? 'warn' : 'pass';
       const parts: string[] = [];
       if (passed.length > 0) parts.push(`${passed.length} passed`);
       if (warned.length > 0) parts.push(`${warned.length} auth/permission errors`);
       if (failed.length > 0) parts.push(`${failed.length} failed`);
+      const sourceNote = sidecarCount > 0 ? ` (${sidecarCount} sidecar, ${probe.toolCallResults.length - sidecarCount} auto)` : '';
       checks.push({
         name: 'Tool call dry-run',
         status,
-        message: parts.join(', '),
+        message: parts.join(', ') + sourceNote,
       });
     }
 

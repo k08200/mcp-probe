@@ -174,6 +174,33 @@ describe('checkMcpServer', () => {
     expect(report.checks.find((c) => c.name === 'Tool call dry-run')).toBeUndefined();
   });
 
+  it('shows sidecar vs auto counts in dry-run message', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        toolCallResults: [
+          { tool: 'read_file', status: 'pass', latencyMs: 30, source: 'sidecar' },
+          { tool: 'write_file', status: 'pass', latencyMs: 20, source: 'auto' },
+        ],
+      })
+    );
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000, probeTools: true });
+
+    const check = report.checks.find((c) => c.name === 'Tool call dry-run');
+    expect(check?.message).toContain('1 sidecar');
+    expect(check?.message).toContain('1 auto');
+  });
+
+  it('passes toolsFile to probe via sidecar', async () => {
+    mockedProbe.mockResolvedValue(makeProbeResult());
+
+    await checkMcpServer({ target: '@test/server', timeoutMs: 5000, toolsFile: '/nonexistent.json' });
+
+    // loadSidecar throws for explicit missing file — error surfaces in handshake check
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000 });
+    expect(report.overallStatus).toBe('pass');
+  });
+
   it('includes resources check when server has resources capability', async () => {
     mockedProbe.mockResolvedValue(
       makeProbeResult({

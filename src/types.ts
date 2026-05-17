@@ -18,6 +18,18 @@ export type ToolCallResult = {
   status: CheckStatus;
   latencyMs: number;
   error?: string;
+  source: 'sidecar' | 'auto';
+};
+
+export type ToolSidecarEntry = {
+  input: Record<string, unknown>;
+  expect?: {
+    not_error_code?: number[];
+  };
+};
+
+export type ToolSidecar = {
+  tools: Record<string, ToolSidecarEntry>;
 };
 
 export type ServerInfo = {
@@ -67,4 +79,5 @@ export type ProbeOptions = {
   args: string[];
   timeoutMs: number;
   probeTools?: boolean;
+  sidecar?: ToolSidecar;
 };
