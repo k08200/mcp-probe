@@ -21,4 +21,5 @@ jobs:
         run: |
           npx @k08200/mcp-probe \
             --config mcp-probe.config.json \
-            --github-summary
+            --github-summary \
+            --badge-file mcp-probe-badge.json

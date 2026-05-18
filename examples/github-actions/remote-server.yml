@@ -20,4 +20,5 @@ jobs:
           npx @k08200/mcp-probe https://mcp.example.com/mcp \
             --header "Authorization: Bearer $MCP_TOKEN" \
             --tools-file .mcp-probe.json \
-            --github-summary
+            --github-summary \
+            --badge-file mcp-probe-badge.json

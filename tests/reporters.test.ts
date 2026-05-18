@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { renderJson } from '../src/reporters/json-reporter.js';
 import { buildGithubAnnotations, buildGithubSummary } from '../src/reporters/github.js';
+import { buildBadge, writeBadgeFile } from '../src/reporters/badge.js';
 import type { BatchReport, CheckReport } from '../src/types.js';
 
 const makeReport = (overrides: Partial<CheckReport> = {}): CheckReport => ({
@@ -81,6 +85,64 @@ describe('github reporter', () => {
     expect(summary).toContain('| WARN | datadog | https://mcp.example.com/mcp | 1 | 150ms |');
     expect(summary).toContain('### datadog');
     expect(summary).not.toContain('### memory');
+  });
+});
+
+describe('badge reporter', () => {
+  it('builds a pass badge for a single report', () => {
+    expect(buildBadge(makeReport())).toEqual({
+      schemaVersion: 1,
+      label: 'mcp probe',
+      message: 'pass',
+      color: 'brightgreen',
+    });
+  });
+
+  it('builds a fail badge for a failing single report', () => {
+    expect(buildBadge(makeReport({ overallStatus: 'fail' }))).toEqual({
+      schemaVersion: 1,
+      label: 'mcp probe',
+      message: 'fail',
+      color: 'red',
+    });
+  });
+
+  it('builds an aggregate batch badge', () => {
+    const batch: BatchReport = {
+      target: 'mcp-probe.config.json',
+      timestamp: '2026-05-17T00:00:00.000Z',
+      overallStatus: 'warn',
+      servers: [
+        { name: 'memory', report: makeReport({ target: '@memory', overallStatus: 'pass' }) },
+        { name: 'datadog', report: makeReport({ target: '@datadog', overallStatus: 'warn' }) },
+      ],
+      totalLatencyMs: 200,
+    };
+
+    expect(buildBadge(batch)).toEqual({
+      schemaVersion: 1,
+      label: 'mcp fleet',
+      message: '1 pass, 1 warn',
+      color: 'yellow',
+    });
+  });
+
+  it('writes badge files and creates parent directories', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-badge-'));
+    const file = join(dir, 'nested', 'badge.json');
+
+    try {
+      writeBadgeFile(makeReport({ overallStatus: 'fail' }), file);
+      const parsed = JSON.parse(readFileSync(file, 'utf8'));
+      expect(parsed).toEqual({
+        schemaVersion: 1,
+        label: 'mcp probe',
+        message: 'fail',
+        color: 'red',
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

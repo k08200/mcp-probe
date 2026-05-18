@@ -17,4 +17,5 @@ jobs:
         run: |
           npx @k08200/mcp-probe @modelcontextprotocol/server-memory \
             --probe-tools \
-            --github-summary
+            --github-summary \
+            --badge-file mcp-probe-badge.json

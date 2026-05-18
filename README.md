@@ -85,6 +85,9 @@ mcp-probe --config mcp-probe.config.json
 # Write GitHub Actions summary and annotations
 mcp-probe --config mcp-probe.config.json --github-summary
 
+# Write shields.io endpoint JSON for a status badge
+mcp-probe --config mcp-probe.config.json --badge-file mcp-probe-badge.json
+
 # Call tools with generated minimal inputs
 mcp-probe @scope/server --probe-tools
 
@@ -187,6 +190,31 @@ mcp-probe @your-org/datadog-mcp --tools-file ./ci/mcp-tools.json
 
 Sidecar inputs are used first; generated minimal inputs are fallback only. Auth and permission failures such as 401/403 are surfaced as warnings so CI can distinguish "OAuth handoff needed" from transport or runtime failure.
 
+## Status badges
+
+Use `--badge-file` to write a [shields.io endpoint](https://shields.io/badges/endpoint-badge) JSON file:
+
+```bash
+mcp-probe --config mcp-probe.config.json --badge-file mcp-probe-badge.json
+```
+
+Example output:
+
+```json
+{
+  "schemaVersion": 1,
+  "label": "mcp fleet",
+  "message": "2 pass, 1 warn",
+  "color": "yellow"
+}
+```
+
+Host that JSON file anywhere public and reference it from your README:
+
+```markdown
+![MCP readiness](https://img.shields.io/endpoint?url=https://example.com/mcp-probe-badge.json)
+```
+
 ## Exit codes
 
 | Code | Meaning |
@@ -219,7 +247,8 @@ jobs:
         run: |
           npx @k08200/mcp-probe @your-org/your-mcp-server \
             --probe-tools \
-            --github-summary
+            --github-summary \
+            --badge-file mcp-probe-badge.json
 ```
 
 Fleet workflow:
@@ -247,7 +276,8 @@ jobs:
         run: |
           npx @k08200/mcp-probe \
             --config mcp-probe.config.json \
-            --github-summary
+            --github-summary \
+            --badge-file mcp-probe-badge.json
 ```
 
 When `--github-summary` is enabled in GitHub Actions, mcp-probe appends a Markdown report to `$GITHUB_STEP_SUMMARY` and emits workflow annotations for failed checks, warnings, and tool-call dry-run errors. This makes PR failures point directly at the broken MCP server or tool call instead of burying the signal in raw logs.
@@ -300,7 +330,7 @@ mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 - [x] HTTP/SSE transport support
 - [x] Batch checking from a config file (`mcp-probe --config mcp-probe.config.json`)
 - [x] GitHub Actions summary and annotations
-- [ ] Badge generation (`mcp-probe --badge > badge.json`)
+- [x] Badge generation (`mcp-probe --badge-file mcp-probe-badge.json`)
 - [ ] Structured stderr conventions for MCP server authors
 - [ ] Server-specific recipe examples for Datadog, Supabase, and Gmail MCP servers
 

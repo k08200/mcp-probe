@@ -6,6 +6,7 @@ import { checkConfigFile } from './config.js';
 import { renderBatchTerminal, renderTerminal } from './reporters/terminal.js';
 import { renderJson } from './reporters/json-reporter.js';
 import { renderGithubActions } from './reporters/github.js';
+import { writeBadgeFile } from './reporters/badge.js';
 import type { TransportMode } from './types.js';
 
 const program = new Command();
@@ -42,7 +43,7 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('0.7.0')
+  .version('0.8.0')
   .argument('[target]', 'npm package, local file path, or remote MCP URL')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
@@ -51,12 +52,13 @@ program
   .option('--transport <mode>', 'transport mode: stdio | http | sse')
   .option('-H, --header <header>', 'HTTP header for remote MCP servers, e.g. "Authorization: Bearer TOKEN"', collect, [])
   .option('--github-summary', 'write GitHub Actions job summary and annotations')
+  .option('--badge-file <path>', 'write shields.io endpoint JSON for README/status badges')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
   .option('--tools-file <path>', 'path to sidecar JSON with declared tool inputs (implies --probe-tools)')
   .action(async (
     target: string | undefined,
     serverArgs: string[],
-    opts: { output: string; timeout: string; config?: string; transport?: string; header: string[]; githubSummary?: boolean; probeTools?: boolean; toolsFile?: string }
+    opts: { output: string; timeout: string; config?: string; transport?: string; header: string[]; githubSummary?: boolean; badgeFile?: string; probeTools?: boolean; toolsFile?: string }
   ) => {
     const timeoutMs = parseInt(opts.timeout, 10);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -88,6 +90,7 @@ program
         try {
           const report = await checkConfigFile(opts.config, timeoutMs);
           if (opts.githubSummary) renderGithubActions(report);
+          if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
           renderJson(report);
           process.exit(report.overallStatus === 'fail' ? 1 : 0);
         } catch (err) {
@@ -102,6 +105,7 @@ program
         const report = await checkConfigFile(opts.config, timeoutMs);
         spinner.stop();
         if (opts.githubSummary) renderGithubActions(report);
+        if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
         renderBatchTerminal(report);
         process.exit(report.overallStatus === 'fail' ? 1 : 0);
       } catch (err) {
@@ -123,6 +127,7 @@ program
     if (opts.output === 'json') {
       const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
       if (opts.githubSummary) renderGithubActions(report);
+      if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
       renderJson(report);
       process.exit(report.overallStatus === 'fail' ? 1 : 0);
       return;
@@ -133,6 +138,7 @@ program
       const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
       spinner.stop();
       if (opts.githubSummary) renderGithubActions(report);
+      if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
       renderTerminal(report);
       process.exit(report.overallStatus === 'fail' ? 1 : 0);
     } catch (err) {
