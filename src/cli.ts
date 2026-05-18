@@ -5,6 +5,7 @@ import { checkMcpServer } from './checker.js';
 import { checkConfigFile } from './config.js';
 import { renderBatchTerminal, renderTerminal } from './reporters/terminal.js';
 import { renderJson } from './reporters/json-reporter.js';
+import { renderGithubActions } from './reporters/github.js';
 import type { TransportMode } from './types.js';
 
 const program = new Command();
@@ -41,7 +42,7 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('0.5.0')
+  .version('0.6.0')
   .argument('[target]', 'npm package, local file path, or remote MCP URL')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
@@ -49,12 +50,13 @@ program
   .option('-c, --config <path>', 'batch config JSON file')
   .option('--transport <mode>', 'transport mode: stdio | http | sse')
   .option('-H, --header <header>', 'HTTP header for remote MCP servers, e.g. "Authorization: Bearer TOKEN"', collect, [])
+  .option('--github-summary', 'write GitHub Actions job summary and annotations')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
   .option('--tools-file <path>', 'path to sidecar JSON with declared tool inputs (implies --probe-tools)')
   .action(async (
     target: string | undefined,
     serverArgs: string[],
-    opts: { output: string; timeout: string; config?: string; transport?: string; header: string[]; probeTools?: boolean; toolsFile?: string }
+    opts: { output: string; timeout: string; config?: string; transport?: string; header: string[]; githubSummary?: boolean; probeTools?: boolean; toolsFile?: string }
   ) => {
     const timeoutMs = parseInt(opts.timeout, 10);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -85,6 +87,7 @@ program
       if (opts.output === 'json') {
         try {
           const report = await checkConfigFile(opts.config, timeoutMs);
+          if (opts.githubSummary) renderGithubActions(report);
           renderJson(report);
           process.exit(report.overallStatus === 'fail' ? 1 : 0);
         } catch (err) {
@@ -98,6 +101,7 @@ program
       try {
         const report = await checkConfigFile(opts.config, timeoutMs);
         spinner.stop();
+        if (opts.githubSummary) renderGithubActions(report);
         renderBatchTerminal(report);
         process.exit(report.overallStatus === 'fail' ? 1 : 0);
       } catch (err) {
@@ -118,6 +122,7 @@ program
 
     if (opts.output === 'json') {
       const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
+      if (opts.githubSummary) renderGithubActions(report);
       renderJson(report);
       process.exit(report.overallStatus === 'fail' ? 1 : 0);
       return;
@@ -127,6 +132,7 @@ program
     try {
       const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
       spinner.stop();
+      if (opts.githubSummary) renderGithubActions(report);
       renderTerminal(report);
       process.exit(report.overallStatus === 'fail' ? 1 : 0);
     } catch (err) {

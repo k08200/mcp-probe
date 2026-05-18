@@ -82,6 +82,9 @@ mcp-probe @scope/server --timeout 30000
 # Batch-check several servers from a config file
 mcp-probe --config mcp-probe.config.json
 
+# Write GitHub Actions summary and annotations
+mcp-probe --config mcp-probe.config.json --github-summary
+
 # Call tools with generated minimal inputs
 mcp-probe @scope/server --probe-tools
 
@@ -200,9 +203,11 @@ Sidecar inputs are used first; generated minimal inputs are fallback only. Auth 
   timeout-minutes: 2
 
 - name: Validate MCP fleet
-  run: npx @k08200/mcp-probe --config mcp-probe.config.json
+  run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
   timeout-minutes: 5
 ```
+
+When `--github-summary` is enabled in GitHub Actions, mcp-probe appends a Markdown report to `$GITHUB_STEP_SUMMARY` and emits workflow annotations for failed checks, warnings, and tool-call dry-run errors. This makes PR failures point directly at the broken MCP server or tool call instead of burying the signal in raw logs.
 
 ## JSON output
 
