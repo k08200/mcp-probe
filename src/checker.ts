@@ -1,16 +1,8 @@
 import { existsSync, readFileSync } from 'fs';
 import { probeMcpServer } from './protocols/mcp-client.js';
-import type { CheckItem, CheckReport, CheckStatus, ToolSidecar } from './types.js';
+import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ToolSidecar } from './types.js';
 
 const SIDECAR_FILENAME = '.mcp-probe.json';
-
-type CheckOptions = {
-  target: string;
-  serverArgs?: string[];
-  timeoutMs: number;
-  probeTools?: boolean;
-  toolsFile?: string;
-};
 
 export function resolveTarget(target: string): { command: string; args: string[] } {
   if (target.startsWith('.') || target.startsWith('/')) {

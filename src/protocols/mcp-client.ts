@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { ProbeOptions, ProbeResult, ToolCallResult } from '../types.js';
 
-const VERSION = '0.3.1';
+const VERSION = '0.4.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [

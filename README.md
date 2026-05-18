@@ -70,6 +70,9 @@ mcp-probe @scope/server --output json
 # Custom timeout (default: 10000ms)
 mcp-probe @scope/server --timeout 30000
 
+# Batch-check several servers from a config file
+mcp-probe --config mcp-probe.config.json
+
 # Call tools with generated minimal inputs
 mcp-probe @scope/server --probe-tools
 
@@ -88,6 +91,47 @@ mcp-probe @scope/server --tools-file .mcp-probe.json
 | **Resources discovery** | Runs `resources/list` when the server advertises resources. |
 | **Prompts discovery** | Runs `prompts/list` when the server advertises prompts. |
 | **Tool call dry-run** | Optional `tools/call` checks via `--probe-tools` or `--tools-file`. |
+
+## Batch CI gate
+
+Use `--config` when a project depends on several MCP servers and you want one CI command to validate all of them:
+
+```json
+{
+  "timeoutMs": 10000,
+  "servers": [
+    {
+      "name": "memory",
+      "target": "@modelcontextprotocol/server-memory",
+      "probeTools": true
+    },
+    {
+      "name": "datadog",
+      "target": "@your-org/datadog-mcp",
+      "toolsFile": "./recipes/datadog.tools.json"
+    }
+  ]
+}
+```
+
+Run:
+
+```bash
+mcp-probe --config mcp-probe.config.json
+```
+
+The process exits with `1` if any configured server fails. Warnings such as auth handoff failures still exit `0`, so CI can flag degraded MCP readiness without blocking deploys unless a server is truly broken.
+
+Config fields:
+
+| Field | Description |
+|-------|-------------|
+| `timeoutMs` | Optional global timeout in milliseconds. CLI `--timeout` is used when omitted. |
+| `servers[].name` | Human-readable name shown in batch output. |
+| `servers[].target` | npm package or local server path. |
+| `servers[].serverArgs` | Optional arguments passed to the MCP server. |
+| `servers[].probeTools` | Enables dry-run tool calls for that server. |
+| `servers[].toolsFile` | Sidecar input file for meaningful `tools/call` samples. Relative paths resolve from the config file directory. |
 
 ## Tool call dry-runs
 
@@ -139,6 +183,10 @@ Sidecar inputs are used first; generated minimal inputs are fallback only. Auth 
 - name: Validate MCP server
   run: npx @k08200/mcp-probe @your-org/your-mcp-server
   timeout-minutes: 2
+
+- name: Validate MCP fleet
+  run: npx @k08200/mcp-probe --config mcp-probe.config.json
+  timeout-minutes: 5
 ```
 
 ## JSON output

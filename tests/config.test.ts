@@ -1,0 +1,117 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { checkConfigFile, loadConfig } from '../src/config.js';
+
+vi.mock('../src/checker.js', () => ({
+  checkMcpServer: vi.fn(),
+}));
+
+import { checkMcpServer } from '../src/checker.js';
+
+const mockedCheck = vi.mocked(checkMcpServer);
+
+const makeReport = (target: string, overallStatus: 'pass' | 'warn' | 'fail' = 'pass') => ({
+  target,
+  timestamp: '2026-05-19T00:00:00.000Z',
+  overallStatus,
+  checks: [],
+  tools: [],
+  resources: [],
+  prompts: [],
+  totalLatencyMs: 10,
+});
+
+describe('loadConfig', () => {
+  it('loads a valid config', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      timeoutMs: 1234,
+      servers: [{ name: 'memory', target: '@modelcontextprotocol/server-memory' }],
+    }));
+
+    try {
+      expect(loadConfig(file)).toEqual({
+        timeoutMs: 1234,
+        servers: [{ name: 'memory', target: '@modelcontextprotocol/server-memory' }],
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects configs without servers', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({ servers: [] }));
+
+    try {
+      expect(() => loadConfig(file)).toThrow('servers must be a non-empty array');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('checkConfigFile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('runs every configured server and resolves toolsFile relative to the config file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      timeoutMs: 8000,
+      servers: [
+        { name: 'memory', target: '@modelcontextprotocol/server-memory', probeTools: true },
+        { name: 'datadog', target: '@acme/datadog-mcp', toolsFile: './recipes/datadog.json' },
+      ],
+    }));
+    mockedCheck
+      .mockResolvedValueOnce(makeReport('@modelcontextprotocol/server-memory', 'pass'))
+      .mockResolvedValueOnce(makeReport('@acme/datadog-mcp', 'warn'));
+
+    try {
+      const report = await checkConfigFile(file, 5000);
+
+      expect(report.overallStatus).toBe('warn');
+      expect(report.servers.map((server) => server.name)).toEqual(['memory', 'datadog']);
+      expect(mockedCheck).toHaveBeenNthCalledWith(1, {
+        target: '@modelcontextprotocol/server-memory',
+        serverArgs: undefined,
+        timeoutMs: 8000,
+        probeTools: true,
+        toolsFile: undefined,
+      });
+      expect(mockedCheck).toHaveBeenNthCalledWith(2, {
+        target: '@acme/datadog-mcp',
+        serverArgs: undefined,
+        timeoutMs: 8000,
+        probeTools: undefined,
+        toolsFile: join(dir, 'recipes/datadog.json'),
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses CLI default timeout when config omits timeoutMs', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [{ name: 'memory', target: '@modelcontextprotocol/server-memory' }],
+    }));
+    mockedCheck.mockResolvedValue(makeReport('@modelcontextprotocol/server-memory'));
+
+    try {
+      await checkConfigFile(file, 4321);
+
+      expect(mockedCheck).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 4321 }));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

@@ -51,6 +51,41 @@ export type CheckReport = {
   totalLatencyMs: number;
 };
 
+export type CheckOptions = {
+  target: string;
+  serverArgs?: string[];
+  timeoutMs: number;
+  probeTools?: boolean;
+  toolsFile?: string;
+};
+
+export type ConfigServer = {
+  name: string;
+  target: string;
+  serverArgs?: string[];
+  timeoutMs?: number;
+  probeTools?: boolean;
+  toolsFile?: string;
+};
+
+export type ProbeConfig = {
+  timeoutMs?: number;
+  servers: ConfigServer[];
+};
+
+export type BatchServerReport = {
+  name: string;
+  report: CheckReport;
+};
+
+export type BatchReport = {
+  target: string;
+  timestamp: string;
+  overallStatus: CheckStatus;
+  servers: BatchServerReport[];
+  totalLatencyMs: number;
+};
+
 export type ResourceInfo = {
   uri: string;
   name?: string;

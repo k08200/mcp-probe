@@ -2,7 +2,8 @@
 import { Command } from 'commander';
 import ora from 'ora';
 import { checkMcpServer } from './checker.js';
-import { renderTerminal } from './reporters/terminal.js';
+import { checkConfigFile } from './config.js';
+import { renderBatchTerminal, renderTerminal } from './reporters/terminal.js';
 import { renderJson } from './reporters/json-reporter.js';
 
 const program = new Command();
@@ -10,17 +11,18 @@ const program = new Command();
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('0.3.1')
-  .argument('<target>', 'npm package, npx-style command, or local file path')
+  .version('0.4.0')
+  .argument('[target]', 'npm package, npx-style command, or local file path')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
   .option('-t, --timeout <ms>', 'connection timeout in ms', '10000')
+  .option('-c, --config <path>', 'batch config JSON file')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
   .option('--tools-file <path>', 'path to sidecar JSON with declared tool inputs (implies --probe-tools)')
   .action(async (
-    target: string,
+    target: string | undefined,
     serverArgs: string[],
-    opts: { output: string; timeout: string; probeTools?: boolean; toolsFile?: string }
+    opts: { output: string; timeout: string; config?: string; probeTools?: boolean; toolsFile?: string }
   ) => {
     const timeoutMs = parseInt(opts.timeout, 10);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -29,6 +31,43 @@ program
     }
     if (!['terminal', 'json'].includes(opts.output)) {
       console.error('Output format must be "terminal" or "json".');
+      process.exit(1);
+    }
+
+    if (opts.config) {
+      if (target) {
+        console.error('Use either --config or a target, not both.');
+        process.exit(1);
+      }
+
+      if (opts.output === 'json') {
+        try {
+          const report = await checkConfigFile(opts.config, timeoutMs);
+          renderJson(report);
+          process.exit(report.overallStatus === 'fail' ? 1 : 0);
+        } catch (err) {
+          console.error(err instanceof Error ? err.message : String(err));
+          process.exit(1);
+        }
+        return;
+      }
+
+      const spinner = ora(`Checking config ${opts.config}`).start();
+      try {
+        const report = await checkConfigFile(opts.config, timeoutMs);
+        spinner.stop();
+        renderBatchTerminal(report);
+        process.exit(report.overallStatus === 'fail' ? 1 : 0);
+      } catch (err) {
+        spinner.fail('Unexpected error');
+        console.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (!target) {
+      console.error('Missing target. Pass a target or --config <path>.');
       process.exit(1);
     }
 

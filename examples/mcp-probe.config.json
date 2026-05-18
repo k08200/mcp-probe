@@ -1,0 +1,15 @@
+{
+  "timeoutMs": 10000,
+  "servers": [
+    {
+      "name": "memory",
+      "target": "@modelcontextprotocol/server-memory",
+      "probeTools": true
+    },
+    {
+      "name": "datadog",
+      "target": "@your-org/datadog-mcp",
+      "toolsFile": "./datadog.tools.json"
+    }
+  ]
+}

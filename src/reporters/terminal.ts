@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { CheckReport, CheckStatus } from '../types.js';
+import type { BatchReport, CheckReport, CheckStatus } from '../types.js';
 
 const ICONS: Record<CheckStatus, string> = {
   pass: chalk.green('✓'),
@@ -83,5 +83,34 @@ export function renderTerminal(report: CheckReport): void {
   const label = COLORS[status](chalk.bold(status.toUpperCase()));
   const total = chalk.dim(`  ${report.totalLatencyMs}ms total`);
   console.log(`  ${ICONS[status]}  ${label}${total}`);
+  console.log('');
+}
+
+export function renderBatchTerminal(report: BatchReport): void {
+  console.log('');
+  console.log(chalk.bold.white('mcp-probe batch') + '  ' + chalk.dim(report.target));
+  console.log(DIVIDER);
+
+  for (const server of report.servers) {
+    const status = server.report.overallStatus;
+    const label = COLORS[status](status.toUpperCase());
+    const tools = server.report.tools.length;
+    const latency = chalk.dim(` ${server.report.totalLatencyMs}ms`);
+    console.log(`  ${ICONS[status]}  ${chalk.bold(server.name)}  ${label}${latency}`);
+    console.log(chalk.dim(`     ${server.report.target}  (${tools} tool${tools !== 1 ? 's' : ''})`));
+  }
+
+  console.log(DIVIDER);
+  const passed = report.servers.filter((server) => server.report.overallStatus === 'pass').length;
+  const warned = report.servers.filter((server) => server.report.overallStatus === 'warn').length;
+  const failed = report.servers.filter((server) => server.report.overallStatus === 'fail').length;
+  const parts = [`${passed} passed`];
+  if (warned > 0) parts.push(`${warned} warned`);
+  if (failed > 0) parts.push(`${failed} failed`);
+
+  const status = report.overallStatus;
+  const label = COLORS[status](chalk.bold(status.toUpperCase()));
+  const total = chalk.dim(`  ${report.totalLatencyMs}ms total`);
+  console.log(`  ${ICONS[status]}  ${label}  ${chalk.dim(parts.join(', '))}${total}`);
   console.log('');
 }

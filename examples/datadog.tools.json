@@ -1,0 +1,13 @@
+{
+  "tools": {
+    "logs_query": {
+      "input": {
+        "query": "service:web status:error",
+        "timeframe": "1h"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    }
+  }
+}
