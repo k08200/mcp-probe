@@ -64,6 +64,15 @@ mcp-probe @modelcontextprotocol/server-filesystem /tmp /Users/me/projects
 # Check a local server file
 mcp-probe ./my-server.js
 
+# Check a remote Streamable HTTP MCP server
+mcp-probe https://mcp.example.com/mcp
+
+# Check a legacy HTTP+SSE MCP server
+mcp-probe https://mcp.example.com/sse --transport sse
+
+# Pass headers to remote servers
+mcp-probe https://mcp.example.com/mcp --header "Authorization: Bearer $TOKEN"
+
 # JSON output for CI / scripting
 mcp-probe @scope/server --output json
 
@@ -107,7 +116,11 @@ Use `--config` when a project depends on several MCP servers and you want one CI
     },
     {
       "name": "datadog",
-      "target": "@your-org/datadog-mcp",
+      "target": "https://mcp.example.com/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN"
+      },
       "toolsFile": "./recipes/datadog.tools.json"
     }
   ]
@@ -128,8 +141,10 @@ Config fields:
 |-------|-------------|
 | `timeoutMs` | Optional global timeout in milliseconds. CLI `--timeout` is used when omitted. |
 | `servers[].name` | Human-readable name shown in batch output. |
-| `servers[].target` | npm package or local server path. |
+| `servers[].target` | npm package, local server path, or remote MCP URL. |
 | `servers[].serverArgs` | Optional arguments passed to the MCP server. |
+| `servers[].transport` | Optional transport override: `stdio`, `http`, or `sse`. URL targets default to `http`; package/path targets default to `stdio`. |
+| `servers[].headers` | Optional HTTP headers for remote MCP servers. |
 | `servers[].probeTools` | Enables dry-run tool calls for that server. |
 | `servers[].toolsFile` | Sidecar input file for meaningful `tools/call` samples. Relative paths resolve from the config file directory. |
 

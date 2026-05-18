@@ -1,14 +1,26 @@
 import { existsSync, readFileSync } from 'fs';
 import { probeMcpServer } from './protocols/mcp-client.js';
-import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ToolSidecar } from './types.js';
+import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, ToolSidecar, TransportMode } from './types.js';
 
 const SIDECAR_FILENAME = '.mcp-probe.json';
 
-export function resolveTarget(target: string): { command: string; args: string[] } {
-  if (target.startsWith('.') || target.startsWith('/')) {
-    return { command: 'node', args: [target] };
+function isUrlTarget(target: string): boolean {
+  return /^https?:\/\//i.test(target);
+}
+
+export function resolveTarget(target: string, transport?: TransportMode): ResolvedTarget {
+  if (transport === 'http' || transport === 'sse') {
+    return { transport, url: target };
   }
-  return { command: 'npx', args: ['--yes', target] };
+
+  if (isUrlTarget(target)) {
+    return { transport: 'http', url: target };
+  }
+
+  if (target.startsWith('.') || target.startsWith('/')) {
+    return { transport: 'stdio', command: 'node', args: [target] };
+  }
+  return { transport: 'stdio', command: 'npx', args: ['--yes', target] };
 }
 
 function loadSidecar(toolsFile?: string): ToolSidecar | undefined {
@@ -61,22 +73,27 @@ function deriveOverallStatus(checks: CheckItem[]): CheckStatus {
 export async function checkMcpServer(options: CheckOptions): Promise<CheckReport> {
   const startTime = Date.now();
   const checks: CheckItem[] = [];
-  const resolved = resolveTarget(options.target);
-  const args = [...resolved.args, ...(options.serverArgs ?? [])];
-  const { command } = resolved;
+  const resolved = resolveTarget(options.target, options.transport);
+  const args = [...(resolved.args ?? []), ...(options.serverArgs ?? [])];
   const probeTools = options.probeTools || Boolean(options.toolsFile);
+  const resolutionMessage = resolved.transport === 'stdio'
+    ? `${resolved.command} ${args.join(' ')}`
+    : `${resolved.transport} ${resolved.url}`;
 
   checks.push({
     name: 'Target resolution',
     status: 'pass',
-    message: `${command} ${args.join(' ')}`,
+    message: resolutionMessage,
   });
 
   try {
     const sidecar = probeTools ? loadSidecar(options.toolsFile) : undefined;
     const probe = await probeMcpServer({
-      command,
+      transport: resolved.transport,
+      command: resolved.command,
       args,
+      url: resolved.url,
+      headers: options.headers,
       timeoutMs: options.timeoutMs,
       probeTools,
       sidecar,

@@ -5,24 +5,56 @@ import { checkMcpServer } from './checker.js';
 import { checkConfigFile } from './config.js';
 import { renderBatchTerminal, renderTerminal } from './reporters/terminal.js';
 import { renderJson } from './reporters/json-reporter.js';
+import type { TransportMode } from './types.js';
 
 const program = new Command();
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
+}
+
+function parseHeaders(values: string[]): Record<string, string> | undefined {
+  if (values.length === 0) return undefined;
+  const headers: Record<string, string> = {};
+  for (const value of values) {
+    const colon = value.indexOf(':');
+    if (colon <= 0) {
+      throw new Error(`Invalid header: ${value}. Use "Name: value".`);
+    }
+    const name = value.slice(0, colon).trim();
+    const headerValue = value.slice(colon + 1).trim();
+    if (!name || !headerValue) {
+      throw new Error(`Invalid header: ${value}. Use "Name: value".`);
+    }
+    headers[name] = headerValue;
+  }
+  return headers;
+}
+
+function parseTransport(value: string | undefined): TransportMode | undefined {
+  if (!value) return undefined;
+  if (value === 'stdio' || value === 'http' || value === 'sse') return value;
+  throw new Error('Transport must be "stdio", "http", or "sse".');
+}
 
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('0.4.0')
-  .argument('[target]', 'npm package, npx-style command, or local file path')
+  .version('0.5.0')
+  .argument('[target]', 'npm package, local file path, or remote MCP URL')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
   .option('-t, --timeout <ms>', 'connection timeout in ms', '10000')
   .option('-c, --config <path>', 'batch config JSON file')
+  .option('--transport <mode>', 'transport mode: stdio | http | sse')
+  .option('-H, --header <header>', 'HTTP header for remote MCP servers, e.g. "Authorization: Bearer TOKEN"', collect, [])
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
   .option('--tools-file <path>', 'path to sidecar JSON with declared tool inputs (implies --probe-tools)')
   .action(async (
     target: string | undefined,
     serverArgs: string[],
-    opts: { output: string; timeout: string; config?: string; probeTools?: boolean; toolsFile?: string }
+    opts: { output: string; timeout: string; config?: string; transport?: string; header: string[]; probeTools?: boolean; toolsFile?: string }
   ) => {
     const timeoutMs = parseInt(opts.timeout, 10);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -31,6 +63,16 @@ program
     }
     if (!['terminal', 'json'].includes(opts.output)) {
       console.error('Output format must be "terminal" or "json".');
+      process.exit(1);
+    }
+
+    let transport: TransportMode | undefined;
+    let headers: Record<string, string> | undefined;
+    try {
+      transport = parseTransport(opts.transport);
+      headers = parseHeaders(opts.header);
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
 
@@ -75,7 +117,7 @@ program
     const toolsFile = opts.toolsFile;
 
     if (opts.output === 'json') {
-      const report = await checkMcpServer({ target, serverArgs, timeoutMs, probeTools, toolsFile });
+      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
       renderJson(report);
       process.exit(report.overallStatus === 'fail' ? 1 : 0);
       return;
@@ -83,7 +125,7 @@ program
 
     const spinner = ora(`Checking ${target}`).start();
     try {
-      const report = await checkMcpServer({ target, serverArgs, timeoutMs, probeTools, toolsFile });
+      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
       spinner.stop();
       renderTerminal(report);
       process.exit(report.overallStatus === 'fail' ? 1 : 0);

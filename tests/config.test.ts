@@ -67,12 +67,18 @@ describe('checkConfigFile', () => {
       timeoutMs: 8000,
       servers: [
         { name: 'memory', target: '@modelcontextprotocol/server-memory', probeTools: true },
-        { name: 'datadog', target: '@acme/datadog-mcp', toolsFile: './recipes/datadog.json' },
+        {
+          name: 'datadog',
+          target: 'https://mcp.example.com/mcp',
+          transport: 'http',
+          headers: { Authorization: 'Bearer test' },
+          toolsFile: './recipes/datadog.json',
+        },
       ],
     }));
     mockedCheck
       .mockResolvedValueOnce(makeReport('@modelcontextprotocol/server-memory', 'pass'))
-      .mockResolvedValueOnce(makeReport('@acme/datadog-mcp', 'warn'));
+      .mockResolvedValueOnce(makeReport('https://mcp.example.com/mcp', 'warn'));
 
     try {
       const report = await checkConfigFile(file, 5000);
@@ -87,12 +93,28 @@ describe('checkConfigFile', () => {
         toolsFile: undefined,
       });
       expect(mockedCheck).toHaveBeenNthCalledWith(2, {
-        target: '@acme/datadog-mcp',
+        target: 'https://mcp.example.com/mcp',
         serverArgs: undefined,
         timeoutMs: 8000,
+        transport: 'http',
+        headers: { Authorization: 'Bearer test' },
         probeTools: undefined,
         toolsFile: join(dir, 'recipes/datadog.json'),
       });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects invalid transport values', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [{ name: 'remote', target: 'https://mcp.example.com/mcp', transport: 'websocket' }],
+    }));
+
+    try {
+      expect(() => loadConfig(file)).toThrow('transport must be stdio, http, or sse');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

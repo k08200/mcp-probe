@@ -1,8 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { ProbeOptions, ProbeResult, ToolCallResult } from '../types.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
@@ -88,16 +91,44 @@ function toolResultErrorMessage(result: unknown): string | undefined {
   return textParts.join('\n') || 'Tool returned an error result';
 }
 
-export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult> {
-  const transport = new StdioClientTransport({
-    command: options.command,
-    args: options.args,
-    env: { ...process.env } as Record<string, string>,
-    stderr: 'pipe',
-  });
+function makeRequestInit(headers?: Record<string, string>): RequestInit | undefined {
+  if (!headers || Object.keys(headers).length === 0) return undefined;
+  return { headers };
+}
 
-  const stderrChunks: Buffer[] = [];
-  transport.stderr?.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+function createTransport(options: ProbeOptions): { transport: Transport; stderrChunks: Buffer[] } {
+  const mode = options.transport ?? 'stdio';
+
+  if (mode === 'stdio') {
+    if (!options.command) {
+      throw new Error('stdio transport requires a command');
+    }
+    const transport = new StdioClientTransport({
+      command: options.command,
+      args: options.args ?? [],
+      env: { ...process.env } as Record<string, string>,
+      stderr: 'pipe',
+    });
+    const stderrChunks: Buffer[] = [];
+    transport.stderr?.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+    return { transport, stderrChunks };
+  }
+
+  if (!options.url) {
+    throw new Error(`${mode} transport requires a URL target`);
+  }
+
+  const url = new URL(options.url);
+  const requestInit = makeRequestInit(options.headers);
+  const transport = mode === 'sse'
+    ? new SSEClientTransport(url, { requestInit })
+    : new StreamableHTTPClientTransport(url, { requestInit });
+
+  return { transport, stderrChunks: [] };
+}
+
+export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult> {
+  const { transport, stderrChunks } = createTransport(options);
 
   const client = new Client(
     { name: 'mcp-probe', version: VERSION },

@@ -26,11 +26,12 @@ const makeProbeResult = (overrides = {}) => ({
 
 describe('resolveTarget', () => {
   it('uses node for local relative paths', () => {
-    expect(resolveTarget('./server.js')).toEqual({ command: 'node', args: ['./server.js'] });
+    expect(resolveTarget('./server.js')).toEqual({ transport: 'stdio', command: 'node', args: ['./server.js'] });
   });
 
   it('uses node for absolute paths', () => {
     expect(resolveTarget('/usr/local/bin/server.js')).toEqual({
+      transport: 'stdio',
       command: 'node',
       args: ['/usr/local/bin/server.js'],
     });
@@ -38,6 +39,7 @@ describe('resolveTarget', () => {
 
   it('uses npx for npm package names', () => {
     expect(resolveTarget('@scope/mcp-server')).toEqual({
+      transport: 'stdio',
       command: 'npx',
       args: ['--yes', '@scope/mcp-server'],
     });
@@ -45,8 +47,23 @@ describe('resolveTarget', () => {
 
   it('uses npx for plain package names', () => {
     expect(resolveTarget('mcp-server-filesystem')).toEqual({
+      transport: 'stdio',
       command: 'npx',
       args: ['--yes', 'mcp-server-filesystem'],
+    });
+  });
+
+  it('uses HTTP transport for URL targets', () => {
+    expect(resolveTarget('https://mcp.example.com/mcp')).toEqual({
+      transport: 'http',
+      url: 'https://mcp.example.com/mcp',
+    });
+  });
+
+  it('can force SSE transport for URL targets', () => {
+    expect(resolveTarget('https://mcp.example.com/sse', 'sse')).toEqual({
+      transport: 'sse',
+      url: 'https://mcp.example.com/sse',
     });
   });
 });
@@ -120,8 +137,27 @@ describe('checkMcpServer', () => {
     await checkMcpServer({ target: '@scope/mcp-pkg', timeoutMs: 8000 });
 
     expect(mockedProbe).toHaveBeenCalledWith(expect.objectContaining({
+      transport: 'stdio',
       command: 'npx',
       args: ['--yes', '@scope/mcp-pkg'],
+      timeoutMs: 8000,
+    }));
+  });
+
+  it('forwards remote transport options and headers', async () => {
+    mockedProbe.mockResolvedValue(makeProbeResult());
+
+    await checkMcpServer({
+      target: 'https://mcp.example.com/mcp',
+      timeoutMs: 8000,
+      transport: 'http',
+      headers: { Authorization: 'Bearer token' },
+    });
+
+    expect(mockedProbe).toHaveBeenCalledWith(expect.objectContaining({
+      transport: 'http',
+      url: 'https://mcp.example.com/mcp',
+      headers: { Authorization: 'Bearer token' },
       timeoutMs: 8000,
     }));
   });

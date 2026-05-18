@@ -8,7 +8,11 @@
     },
     {
       "name": "datadog",
-      "target": "@your-org/datadog-mcp",
+      "target": "https://mcp.example.com/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN"
+      },
       "toolsFile": "./datadog.tools.json"
     }
   ]

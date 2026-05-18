@@ -38,6 +38,15 @@ export type ServerInfo = {
   capabilities: string[];
 };
 
+export type TransportMode = 'stdio' | 'http' | 'sse';
+
+export type ResolvedTarget = {
+  transport: TransportMode;
+  command?: string;
+  args?: string[];
+  url?: string;
+};
+
 export type CheckReport = {
   target: string;
   timestamp: string;
@@ -55,6 +64,8 @@ export type CheckOptions = {
   target: string;
   serverArgs?: string[];
   timeoutMs: number;
+  transport?: TransportMode;
+  headers?: Record<string, string>;
   probeTools?: boolean;
   toolsFile?: string;
 };
@@ -64,6 +75,8 @@ export type ConfigServer = {
   target: string;
   serverArgs?: string[];
   timeoutMs?: number;
+  transport?: TransportMode;
+  headers?: Record<string, string>;
   probeTools?: boolean;
   toolsFile?: string;
 };
@@ -110,8 +123,11 @@ export type ProbeResult = {
 };
 
 export type ProbeOptions = {
-  command: string;
-  args: string[];
+  transport: TransportMode;
+  command?: string;
+  args?: string[];
+  url?: string;
+  headers?: Record<string, string>;
   timeoutMs: number;
   probeTools?: boolean;
   sidecar?: ToolSidecar;

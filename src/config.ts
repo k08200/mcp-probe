@@ -24,6 +24,19 @@ function validateServer(server: unknown, index: number): ConfigServer {
   if (server.timeoutMs !== undefined && (typeof server.timeoutMs !== 'number' || server.timeoutMs <= 0)) {
     throw new Error(`Invalid config: servers[${index}].timeoutMs must be a positive number`);
   }
+  if (server.transport !== undefined && !['stdio', 'http', 'sse'].includes(String(server.transport))) {
+    throw new Error(`Invalid config: servers[${index}].transport must be stdio, http, or sse`);
+  }
+  if (server.headers !== undefined) {
+    if (!isObject(server.headers)) {
+      throw new Error(`Invalid config: servers[${index}].headers must be an object`);
+    }
+    for (const [key, value] of Object.entries(server.headers)) {
+      if (typeof value !== 'string') {
+        throw new Error(`Invalid config: servers[${index}].headers.${key} must be a string`);
+      }
+    }
+  }
   if (server.probeTools !== undefined && typeof server.probeTools !== 'boolean') {
     throw new Error(`Invalid config: servers[${index}].probeTools must be a boolean`);
   }
@@ -83,6 +96,8 @@ export async function checkConfigFile(configFile: string, defaultTimeoutMs = 100
       target: server.target,
       serverArgs: server.serverArgs,
       timeoutMs: server.timeoutMs ?? config.timeoutMs ?? defaultTimeoutMs,
+      transport: server.transport,
+      headers: server.headers,
       probeTools: server.probeTools,
       toolsFile: resolveConfigPath(configFile, server.toolsFile),
     };
