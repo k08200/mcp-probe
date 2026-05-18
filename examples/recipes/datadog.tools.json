@@ -1,0 +1,23 @@
+{
+  "tools": {
+    "logs_query": {
+      "input": {
+        "query": "service:web status:error",
+        "timeframe": "1h"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    },
+    "metrics_query": {
+      "input": {
+        "query": "avg:system.cpu.user{*}",
+        "from": "now-15m",
+        "to": "now"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    }
+  }
+}

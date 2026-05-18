@@ -1,0 +1,19 @@
+{
+  "tools": {
+    "list_projects": {
+      "input": {},
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    },
+    "execute_sql": {
+      "input": {
+        "project_id": "YOUR_PROJECT_ID",
+        "query": "select 1 as health_check"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    }
+  }
+}

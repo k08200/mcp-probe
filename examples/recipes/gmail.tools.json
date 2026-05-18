@@ -1,0 +1,18 @@
+{
+  "tools": {
+    "search_messages": {
+      "input": {
+        "query": "newer_than:7d"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    },
+    "get_profile": {
+      "input": {},
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    }
+  }
+}

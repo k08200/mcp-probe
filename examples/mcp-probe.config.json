@@ -13,7 +13,7 @@
       "headers": {
         "Authorization": "Bearer ${DATADOG_MCP_TOKEN}"
       },
-      "toolsFile": "./datadog.tools.json"
+      "toolsFile": "./recipes/datadog.tools.json"
     }
   ]
 }

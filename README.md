@@ -290,6 +290,18 @@ Copy-ready examples live in [`examples/github-actions`](examples/github-actions)
 | [`fleet.yml`](examples/github-actions/fleet.yml) | Validate several MCP servers from `mcp-probe.config.json` on PRs and hourly schedules. |
 | [`remote-server.yml`](examples/github-actions/remote-server.yml) | Validate a remote Streamable HTTP MCP server with auth headers. |
 
+## Recipes
+
+Production MCP checks work best with sidecar inputs that exercise real call paths instead of generated empty values. Copy-ready starting points live in [`examples/recipes`](examples/recipes):
+
+| Recipe | Focus |
+|--------|-------|
+| [`datadog.tools.json`](examples/recipes/datadog.tools.json) | Logs/metrics queries that reveal auth handoff and downstream API failures. |
+| [`supabase.tools.json`](examples/recipes/supabase.tools.json) | Project visibility and a harmless `select 1` SQL path. |
+| [`gmail.tools.json`](examples/recipes/gmail.tools.json) | OAuth/token handoff and read-only mailbox access. |
+
+Tool names vary by MCP server implementation. Run your server once with `--output json`, inspect the discovered tool names and schemas, then adjust the recipe file to match.
+
 ## JSON output
 
 ```bash
@@ -332,7 +344,7 @@ mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 - [x] GitHub Actions summary and annotations
 - [x] Badge generation (`mcp-probe --badge-file mcp-probe-badge.json`)
 - [ ] Structured stderr conventions for MCP server authors
-- [ ] Server-specific recipe examples for Datadog, Supabase, and Gmail MCP servers
+- [x] Server-specific recipe examples for Datadog, Supabase, and Gmail MCP servers
 
 ## Contributing
 
