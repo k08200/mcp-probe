@@ -122,7 +122,7 @@ Use `--config` when a project depends on several MCP servers and you want one CI
       "target": "https://mcp.example.com/mcp",
       "transport": "http",
       "headers": {
-        "Authorization": "Bearer YOUR_TOKEN"
+        "Authorization": "Bearer ${DATADOG_MCP_TOKEN}"
       },
       "toolsFile": "./recipes/datadog.tools.json"
     }
@@ -147,7 +147,7 @@ Config fields:
 | `servers[].target` | npm package, local server path, or remote MCP URL. |
 | `servers[].serverArgs` | Optional arguments passed to the MCP server. |
 | `servers[].transport` | Optional transport override: `stdio`, `http`, or `sse`. URL targets default to `http`; package/path targets default to `stdio`. |
-| `servers[].headers` | Optional HTTP headers for remote MCP servers. |
+| `servers[].headers` | Optional HTTP headers for remote MCP servers. `${ENV_VAR}` placeholders are expanded at runtime. |
 | `servers[].probeTools` | Enables dry-run tool calls for that server. |
 | `servers[].toolsFile` | Sidecar input file for meaningful `tools/call` samples. Relative paths resolve from the config file directory. |
 
@@ -196,18 +196,69 @@ Sidecar inputs are used first; generated minimal inputs are fallback only. Auth 
 
 ## CI integration
 
+Single server workflow:
+
 ```yaml
 # .github/workflows/mcp-probe.yml
-- name: Validate MCP server
-  run: npx @k08200/mcp-probe @your-org/your-mcp-server
-  timeout-minutes: 2
+name: MCP Probe
 
-- name: Validate MCP fleet
-  run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
-  timeout-minutes: 5
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MCP server
+        run: |
+          npx @k08200/mcp-probe @your-org/your-mcp-server \
+            --probe-tools \
+            --github-summary
+```
+
+Fleet workflow:
+
+```yaml
+# .github/workflows/mcp-fleet.yml
+name: MCP Fleet Probe
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 * * * *"
+
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MCP fleet
+        run: |
+          npx @k08200/mcp-probe \
+            --config mcp-probe.config.json \
+            --github-summary
 ```
 
 When `--github-summary` is enabled in GitHub Actions, mcp-probe appends a Markdown report to `$GITHUB_STEP_SUMMARY` and emits workflow annotations for failed checks, warnings, and tool-call dry-run errors. This makes PR failures point directly at the broken MCP server or tool call instead of burying the signal in raw logs.
+
+Copy-ready examples live in [`examples/github-actions`](examples/github-actions):
+
+| Example | Use case |
+|---------|----------|
+| [`single-server.yml`](examples/github-actions/single-server.yml) | Validate one stdio MCP package. |
+| [`fleet.yml`](examples/github-actions/fleet.yml) | Validate several MCP servers from `mcp-probe.config.json` on PRs and hourly schedules. |
+| [`remote-server.yml`](examples/github-actions/remote-server.yml) | Validate a remote Streamable HTTP MCP server with auth headers. |
 
 ## JSON output
 
@@ -246,8 +297,9 @@ mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 
 ## Roadmap
 
-- [ ] HTTP/SSE transport support
-- [ ] Batch checking from a file (`mcp-probe --list servers.txt`)
+- [x] HTTP/SSE transport support
+- [x] Batch checking from a config file (`mcp-probe --config mcp-probe.config.json`)
+- [x] GitHub Actions summary and annotations
 - [ ] Badge generation (`mcp-probe --badge > badge.json`)
 - [ ] Structured stderr conventions for MCP server authors
 - [ ] Server-specific recipe examples for Datadog, Supabase, and Gmail MCP servers

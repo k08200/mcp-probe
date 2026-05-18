@@ -106,6 +106,56 @@ describe('checkConfigFile', () => {
     }
   });
 
+  it('expands environment variables in headers', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [
+        {
+          name: 'remote',
+          target: 'https://mcp.example.com/mcp',
+          headers: { Authorization: 'Bearer ${MCP_PROBE_TEST_TOKEN}' },
+        },
+      ],
+    }));
+    mockedCheck.mockResolvedValue(makeReport('https://mcp.example.com/mcp'));
+    process.env.MCP_PROBE_TEST_TOKEN = 'test-token';
+
+    try {
+      await checkConfigFile(file, 5000);
+
+      expect(mockedCheck).toHaveBeenCalledWith(expect.objectContaining({
+        headers: { Authorization: 'Bearer test-token' },
+      }));
+    } finally {
+      delete process.env.MCP_PROBE_TEST_TOKEN;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when a header references a missing environment variable', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [
+        {
+          name: 'remote',
+          target: 'https://mcp.example.com/mcp',
+          headers: { Authorization: 'Bearer ${MISSING_MCP_PROBE_TOKEN}' },
+        },
+      ],
+    }));
+
+    try {
+      await expect(checkConfigFile(file, 5000)).rejects.toThrow(
+        'Environment variable MISSING_MCP_PROBE_TOKEN is not set'
+      );
+      expect(mockedCheck).not.toHaveBeenCalled();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects invalid transport values', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
     const file = join(dir, 'mcp-probe.config.json');

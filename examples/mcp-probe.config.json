@@ -11,7 +11,7 @@
       "target": "https://mcp.example.com/mcp",
       "transport": "http",
       "headers": {
-        "Authorization": "Bearer YOUR_TOKEN"
+        "Authorization": "Bearer ${DATADOG_MCP_TOKEN}"
       },
       "toolsFile": "./datadog.tools.json"
     }

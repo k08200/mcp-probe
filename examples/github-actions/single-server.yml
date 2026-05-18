@@ -1,0 +1,20 @@
+name: MCP Probe
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MCP server
+        run: |
+          npx @k08200/mcp-probe @modelcontextprotocol/server-memory \
+            --probe-tools \
+            --github-summary

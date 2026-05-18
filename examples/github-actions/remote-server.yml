@@ -1,0 +1,23 @@
+name: Remote MCP Probe
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate remote Streamable HTTP MCP server
+        env:
+          MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
+        run: |
+          npx @k08200/mcp-probe https://mcp.example.com/mcp \
+            --header "Authorization: Bearer $MCP_TOKEN" \
+            --tools-file .mcp-probe.json \
+            --github-summary

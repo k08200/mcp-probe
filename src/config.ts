@@ -86,6 +86,23 @@ function resolveConfigPath(configFile: string, maybeRelative: string | undefined
   return resolve(dirname(configFile), maybeRelative);
 }
 
+function expandEnvVars(value: string): string {
+  return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/gi, (match, name: string) => {
+    const envValue = process.env[name];
+    if (envValue === undefined) {
+      throw new Error(`Environment variable ${name} is not set`);
+    }
+    return envValue;
+  });
+}
+
+function expandHeaders(headers: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!headers) return undefined;
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key, expandEnvVars(value)])
+  );
+}
+
 export async function checkConfigFile(configFile: string, defaultTimeoutMs = 10000): Promise<BatchReport> {
   const startTime = Date.now();
   const config = loadConfig(configFile);
@@ -97,7 +114,7 @@ export async function checkConfigFile(configFile: string, defaultTimeoutMs = 100
       serverArgs: server.serverArgs,
       timeoutMs: server.timeoutMs ?? config.timeoutMs ?? defaultTimeoutMs,
       transport: server.transport,
-      headers: server.headers,
+      headers: expandHeaders(server.headers),
       probeTools: server.probeTools,
       toolsFile: resolveConfigPath(configFile, server.toolsFile),
     };
