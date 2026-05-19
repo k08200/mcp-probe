@@ -16,6 +16,14 @@ function collect(value: string, previous: string[]): string[] {
   return previous;
 }
 
+function validateRegex(pattern: string, label: string): void {
+  try {
+    new RegExp(pattern);
+  } catch {
+    throw new Error(`Invalid ${label} regex: ${pattern}`);
+  }
+}
+
 function parseHeaders(values: string[]): Record<string, string> | undefined {
   if (values.length === 0) return undefined;
   const headers: Record<string, string> = {};
@@ -43,7 +51,7 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('0.8.0')
+  .version('0.9.0')
   .argument('[target]', 'npm package, local file path, or remote MCP URL')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
@@ -51,6 +59,8 @@ program
   .option('-c, --config <path>', 'batch config JSON file')
   .option('--transport <mode>', 'transport mode: stdio | http | sse')
   .option('-H, --header <header>', 'HTTP header for remote MCP servers, e.g. "Authorization: Bearer TOKEN"', collect, [])
+  .option('--stderr-allow <pattern>', 'stderr regex to ignore when classifying startup failures', collect, [])
+  .option('--stderr-fatal <pattern>', 'stderr regex to always treat as the startup failure reason', collect, [])
   .option('--github-summary', 'write GitHub Actions job summary and annotations')
   .option('--badge-file <path>', 'write shields.io endpoint JSON for README/status badges')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
@@ -58,7 +68,19 @@ program
   .action(async (
     target: string | undefined,
     serverArgs: string[],
-    opts: { output: string; timeout: string; config?: string; transport?: string; header: string[]; githubSummary?: boolean; badgeFile?: string; probeTools?: boolean; toolsFile?: string }
+    opts: {
+      output: string;
+      timeout: string;
+      config?: string;
+      transport?: string;
+      header: string[];
+      stderrAllow: string[];
+      stderrFatal: string[];
+      githubSummary?: boolean;
+      badgeFile?: string;
+      probeTools?: boolean;
+      toolsFile?: string;
+    }
   ) => {
     const timeoutMs = parseInt(opts.timeout, 10);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -75,10 +97,15 @@ program
     try {
       transport = parseTransport(opts.transport);
       headers = parseHeaders(opts.header);
+      for (const pattern of opts.stderrAllow) validateRegex(pattern, '--stderr-allow');
+      for (const pattern of opts.stderrFatal) validateRegex(pattern, '--stderr-fatal');
     } catch (err) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
+    const stderr = opts.stderrAllow.length > 0 || opts.stderrFatal.length > 0
+      ? { allow: opts.stderrAllow, fatal: opts.stderrFatal }
+      : undefined;
 
     if (opts.config) {
       if (target) {
@@ -125,7 +152,7 @@ program
     const toolsFile = opts.toolsFile;
 
     if (opts.output === 'json') {
-      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
+      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, stderr, probeTools, toolsFile });
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
       renderJson(report);
@@ -135,7 +162,7 @@ program
 
     const spinner = ora(`Checking ${target}`).start();
     try {
-      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, probeTools, toolsFile });
+      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, stderr, probeTools, toolsFile });
       spinner.stop();
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);

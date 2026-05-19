@@ -162,6 +162,26 @@ describe('checkMcpServer', () => {
     }));
   });
 
+  it('forwards stderr classification rules', async () => {
+    mockedProbe.mockResolvedValue(makeProbeResult());
+
+    await checkMcpServer({
+      target: '@test/server',
+      timeoutMs: 8000,
+      stderr: {
+        allow: ['^Warning:'],
+        fatal: ['panic'],
+      },
+    });
+
+    expect(mockedProbe).toHaveBeenCalledWith(expect.objectContaining({
+      stderr: {
+        allow: ['^Warning:'],
+        fatal: ['panic'],
+      },
+    }));
+  });
+
   it('forwards probeTools flag to probe', async () => {
     mockedProbe.mockResolvedValue(makeProbeResult());
 

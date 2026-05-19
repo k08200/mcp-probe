@@ -94,6 +94,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       args,
       url: resolved.url,
       headers: options.headers,
+      stderr: options.stderr,
       timeoutMs: options.timeoutMs,
       probeTools,
       sidecar,

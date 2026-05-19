@@ -13,6 +13,10 @@
       "headers": {
         "Authorization": "Bearer ${DATADOG_MCP_TOKEN}"
       },
+      "stderr": {
+        "allow": ["^Warning:", "missing optional config"],
+        "fatal": ["panic", "FATAL"]
+      },
       "toolsFile": "./recipes/datadog.tools.json"
     }
   ]

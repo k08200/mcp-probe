@@ -40,6 +40,11 @@ export type ServerInfo = {
 
 export type TransportMode = 'stdio' | 'http' | 'sse';
 
+export type StderrRules = {
+  allow?: string[];
+  fatal?: string[];
+};
+
 export type ResolvedTarget = {
   transport: TransportMode;
   command?: string;
@@ -66,6 +71,7 @@ export type CheckOptions = {
   timeoutMs: number;
   transport?: TransportMode;
   headers?: Record<string, string>;
+  stderr?: StderrRules;
   probeTools?: boolean;
   toolsFile?: string;
 };
@@ -77,6 +83,7 @@ export type ConfigServer = {
   timeoutMs?: number;
   transport?: TransportMode;
   headers?: Record<string, string>;
+  stderr?: StderrRules;
   probeTools?: boolean;
   toolsFile?: string;
 };
@@ -128,6 +135,7 @@ export type ProbeOptions = {
   args?: string[];
   url?: string;
   headers?: Record<string, string>;
+  stderr?: StderrRules;
   timeoutMs: number;
   probeTools?: boolean;
   sidecar?: ToolSidecar;

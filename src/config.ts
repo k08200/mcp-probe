@@ -37,6 +37,25 @@ function validateServer(server: unknown, index: number): ConfigServer {
       }
     }
   }
+  if (server.stderr !== undefined) {
+    if (!isObject(server.stderr)) {
+      throw new Error(`Invalid config: servers[${index}].stderr must be an object`);
+    }
+    const stderr = server.stderr as Record<string, unknown>;
+    for (const key of ['allow', 'fatal']) {
+      const value = stderr[key];
+      if (value !== undefined && (!Array.isArray(value) || !value.every((pattern) => typeof pattern === 'string'))) {
+        throw new Error(`Invalid config: servers[${index}].stderr.${key} must be a string array`);
+      }
+      for (const pattern of (value as string[] | undefined) ?? []) {
+        try {
+          new RegExp(pattern);
+        } catch {
+          throw new Error(`Invalid config: servers[${index}].stderr.${key} contains invalid regex: ${pattern}`);
+        }
+      }
+    }
+  }
   if (server.probeTools !== undefined && typeof server.probeTools !== 'boolean') {
     throw new Error(`Invalid config: servers[${index}].probeTools must be a boolean`);
   }
@@ -115,6 +134,7 @@ export async function checkConfigFile(configFile: string, defaultTimeoutMs = 100
       timeoutMs: server.timeoutMs ?? config.timeoutMs ?? defaultTimeoutMs,
       transport: server.transport,
       headers: expandHeaders(server.headers),
+      stderr: server.stderr,
       probeTools: server.probeTools,
       toolsFile: resolveConfigPath(configFile, server.toolsFile),
     };

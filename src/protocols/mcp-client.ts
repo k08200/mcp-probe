@@ -3,9 +3,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import type { ProbeOptions, ProbeResult, ToolCallResult } from '../types.js';
+import type { ProbeOptions, ProbeResult, StderrRules, ToolCallResult } from '../types.js';
 
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
@@ -18,18 +18,28 @@ const STDERR_WARNING_PATTERNS = [
   /update available/i,
 ];
 
-function isStderrNoise(line: string): boolean {
-  return STDERR_WARNING_PATTERNS.some((p) => p.test(line));
+function compilePatterns(patterns: string[] | undefined): RegExp[] {
+  return (patterns ?? []).map((pattern) => new RegExp(pattern, 'i'));
 }
 
-function firstMeaningfulLine(text: string): string {
+function isStderrNoise(line: string, rules?: StderrRules): boolean {
+  return STDERR_WARNING_PATTERNS.some((p) => p.test(line))
+    || compilePatterns(rules?.allow).some((p) => p.test(line));
+}
+
+function firstMeaningfulLine(text: string, fallback: string, rules?: StderrRules): string {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const nonNoise = lines.filter((l) => !isStderrNoise(l));
-  const target = nonNoise.length > 0 ? nonNoise : lines;
+  const fatalLine = lines.find((l) => compilePatterns(rules?.fatal).some((p) => p.test(l)));
+  if (fatalLine) return fatalLine;
+
+  const nonNoise = lines.filter((l) => !isStderrNoise(l, rules));
+  if (nonNoise.length === 0) return fallback;
+
+  const target = nonNoise;
   const errorLine = target.find((l) => /^Error:/i.test(l));
   if (errorLine) return errorLine;
   const skip = /^at |^node:|^\^$|^const |^throw |^Require stack/;
-  return target.find((l) => !skip.test(l) && l.length > 3) ?? target[0] ?? text;
+  return target.find((l) => !skip.test(l) && l.length > 3) ?? target[0] ?? fallback;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -140,9 +150,10 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
     await withTimeout(client.connect(transport), options.timeoutMs, 'Connection');
   } catch (err) {
     const stderrText = Buffer.concat(stderrChunks).toString('utf8').trim();
+    const fallback = err instanceof Error ? err.message : String(err);
     const reason = stderrText
-      ? firstMeaningfulLine(stderrText)
-      : err instanceof Error ? err.message : String(err);
+      ? firstMeaningfulLine(stderrText, fallback, options.stderr)
+      : fallback;
     await client.close().catch(() => undefined);
     throw new Error(reason);
   }

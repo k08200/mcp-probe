@@ -72,6 +72,7 @@ describe('checkConfigFile', () => {
           target: 'https://mcp.example.com/mcp',
           transport: 'http',
           headers: { Authorization: 'Bearer test' },
+          stderr: { allow: ['^Warning:'], fatal: ['panic'] },
           toolsFile: './recipes/datadog.json',
         },
       ],
@@ -89,6 +90,9 @@ describe('checkConfigFile', () => {
         target: '@modelcontextprotocol/server-memory',
         serverArgs: undefined,
         timeoutMs: 8000,
+        transport: undefined,
+        headers: undefined,
+        stderr: undefined,
         probeTools: true,
         toolsFile: undefined,
       });
@@ -98,6 +102,7 @@ describe('checkConfigFile', () => {
         timeoutMs: 8000,
         transport: 'http',
         headers: { Authorization: 'Bearer test' },
+        stderr: { allow: ['^Warning:'], fatal: ['panic'] },
         probeTools: undefined,
         toolsFile: join(dir, 'recipes/datadog.json'),
       });
@@ -165,6 +170,26 @@ describe('checkConfigFile', () => {
 
     try {
       expect(() => loadConfig(file)).toThrow('transport must be stdio, http, or sse');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects invalid stderr regex values', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [
+        {
+          name: 'memory',
+          target: '@modelcontextprotocol/server-memory',
+          stderr: { allow: ['[invalid'] },
+        },
+      ],
+    }));
+
+    try {
+      expect(() => loadConfig(file)).toThrow('stderr.allow contains invalid regex');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

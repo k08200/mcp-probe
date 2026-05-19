@@ -73,6 +73,9 @@ mcp-probe https://mcp.example.com/sse --transport sse
 # Pass headers to remote servers
 mcp-probe https://mcp.example.com/mcp --header "Authorization: Bearer $TOKEN"
 
+# Ignore known noisy stderr lines when classifying startup failures
+mcp-probe @scope/server --stderr-allow "^Warning:" --stderr-fatal "panic|FATAL"
+
 # JSON output for CI / scripting
 mcp-probe @scope/server --output json
 
@@ -127,6 +130,10 @@ Use `--config` when a project depends on several MCP servers and you want one CI
       "headers": {
         "Authorization": "Bearer ${DATADOG_MCP_TOKEN}"
       },
+      "stderr": {
+        "allow": ["^Warning:", "missing optional config"],
+        "fatal": ["panic", "FATAL"]
+      },
       "toolsFile": "./recipes/datadog.tools.json"
     }
   ]
@@ -151,8 +158,38 @@ Config fields:
 | `servers[].serverArgs` | Optional arguments passed to the MCP server. |
 | `servers[].transport` | Optional transport override: `stdio`, `http`, or `sse`. URL targets default to `http`; package/path targets default to `stdio`. |
 | `servers[].headers` | Optional HTTP headers for remote MCP servers. `${ENV_VAR}` placeholders are expanded at runtime. |
+| `servers[].stderr.allow` | Optional regex patterns for stderr lines that should be ignored when startup fails. |
+| `servers[].stderr.fatal` | Optional regex patterns for stderr lines that should always be treated as the startup failure reason. |
 | `servers[].probeTools` | Enables dry-run tool calls for that server. |
 | `servers[].toolsFile` | Sidecar input file for meaningful `tools/call` samples. Relative paths resolve from the config file directory. |
+
+## Stderr classification
+
+Many MCP servers write harmless warnings to stderr during startup: optional config notices, update checks, deprecation warnings, and similar noise. If the server later fails to initialize, raw stderr can make those warnings look like the root cause.
+
+mcp-probe has built-in warning filters and also lets you declare server-specific regexes:
+
+```bash
+mcp-probe @scope/server \
+  --stderr-allow "^Warning:" \
+  --stderr-allow "missing optional config" \
+  --stderr-fatal "panic|FATAL"
+```
+
+For batch checks, put the rules in `mcp-probe.config.json`:
+
+```json
+{
+  "name": "datadog",
+  "target": "https://mcp.example.com/mcp",
+  "stderr": {
+    "allow": ["^Warning:", "missing optional config"],
+    "fatal": ["panic", "FATAL"]
+  }
+}
+```
+
+`fatal` patterns win over `allow` patterns. If every stderr line is allowed noise, mcp-probe reports the actual connection/init error instead of the warning text.
 
 ## Tool call dry-runs
 
@@ -343,7 +380,7 @@ mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 - [x] Batch checking from a config file (`mcp-probe --config mcp-probe.config.json`)
 - [x] GitHub Actions summary and annotations
 - [x] Badge generation (`mcp-probe --badge-file mcp-probe-badge.json`)
-- [ ] Structured stderr conventions for MCP server authors
+- [x] Structured stderr classification rules
 - [x] Server-specific recipe examples for Datadog, Supabase, and Gmail MCP servers
 
 ## Contributing
