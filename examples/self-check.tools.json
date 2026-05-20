@@ -1,0 +1,17 @@
+{
+  "tools": {
+    "echo": {
+      "input": {
+        "message": "mcp-probe self-check"
+      }
+    },
+    "auth_check": {
+      "input": {
+        "query": "errors"
+      },
+      "expect": {
+        "not_error_code": [401]
+      }
+    }
+  }
+}

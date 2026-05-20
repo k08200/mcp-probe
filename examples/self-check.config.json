@@ -1,0 +1,14 @@
+{
+  "timeoutMs": 10000,
+  "servers": [
+    {
+      "name": "fixture-stdio",
+      "target": "./tests/fixtures/stdio-mcp-server.js",
+      "toolsFile": "./self-check.tools.json",
+      "stderr": {
+        "allow": ["^Warning:", "missing optional config"],
+        "fatal": ["panic", "FATAL"]
+      }
+    }
+  ]
+}

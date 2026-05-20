@@ -9,6 +9,39 @@
 
 The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ servers and there was no way to know if they actually worked.
 
+## Quick Start for CI
+
+Add this workflow to any project that depends on MCP servers:
+
+```yaml
+name: MCP Probe
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MCP server
+        run: |
+          npx @k08200/mcp-probe @your-org/your-mcp-server \
+            --probe-tools \
+            --github-summary
+```
+
+For teams running several MCP servers, use a config file:
+
+```bash
+npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+```
+
 ```bash
 npx @k08200/mcp-probe @modelcontextprotocol/server-memory
 ```
@@ -327,6 +360,8 @@ Copy-ready examples live in [`examples/github-actions`](examples/github-actions)
 | [`fleet.yml`](examples/github-actions/fleet.yml) | Validate several MCP servers from `mcp-probe.config.json` on PRs and hourly schedules. |
 | [`remote-server.yml`](examples/github-actions/remote-server.yml) | Validate a remote Streamable HTTP MCP server with auth headers. |
 
+mcp-probe also dogfoods itself in CI with [`examples/self-check.config.json`](examples/self-check.config.json), which validates batch mode, sidecar inputs, GitHub summaries, and badge output against a local fixture MCP server.
+
 ## Recipes
 
 Production MCP checks work best with sidecar inputs that exercise real call paths instead of generated empty values. Copy-ready starting points live in [`examples/recipes`](examples/recipes):
@@ -376,6 +411,7 @@ mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 
 ## Roadmap
 
+- [x] Self-check batch workflow for mcp-probe itself
 - [x] HTTP/SSE transport support
 - [x] Batch checking from a config file (`mcp-probe --config mcp-probe.config.json`)
 - [x] GitHub Actions summary and annotations

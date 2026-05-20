@@ -5,7 +5,7 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { ProbeOptions, ProbeResult, StderrRules, ToolCallResult } from '../types.js';
 
-const VERSION = '0.9.0';
+const VERSION = '1.0.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [

@@ -37,6 +37,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci && npm run build
-      - name: Smoke test against real MCP server
-        run: node dist/cli.js @modelcontextprotocol/server-memory --github-summary --badge-file mcp-probe-badge.json
+      - name: Self-check batch mode
+        run: node dist/cli.js --config examples/self-check.config.json --github-summary --badge-file mcp-probe-badge.json
         timeout-minutes: 2
