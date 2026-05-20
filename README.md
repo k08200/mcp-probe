@@ -105,6 +105,8 @@ mcp-probe  @modelcontextprotocol/server-memory
 
 ## Install
 
+Requires Node.js 20.19 or newer.
+
 ```bash
 # No install needed
 npx @k08200/mcp-probe <target>
