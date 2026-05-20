@@ -23,6 +23,18 @@ npm run typecheck                                     # type check only
 2. Add a test case in `tests/checker.test.ts`
 3. Update the README check table
 
+## Adding a server recipe
+
+Recipes live in `examples/recipes`. They should be safe to run in CI and must not require destructive tool calls.
+
+1. Run the target server with `mcp-probe --output json`
+2. Pick read-only or harmless tools that exercise the real downstream call path
+3. Add a `*.tools.json` sidecar with realistic sample inputs
+4. Document required environment variables in `examples/recipes/README.md`
+5. Redact tokens, tenant IDs, private URLs, and customer data
+
+Good recipes are boring: they prove auth and connectivity without modifying user data.
+
 ## Commit style
 
 Conventional commits: `feat|fix|refactor|docs|test|chore: description`
@@ -32,3 +44,4 @@ Conventional commits: `feat|fix|refactor|docs|test|chore: description`
 - Keep PRs focused on one thing
 - Tests must pass: `npm test`
 - TypeScript must compile: `npm run typecheck`
+- Do not include secrets in fixtures, screenshots, logs, or JSON output

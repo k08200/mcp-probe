@@ -1,0 +1,14 @@
+# Source and local development files are excluded from the npm package.
+# Published files are controlled by package.json "files": dist + examples.
+
+src
+tests
+.github
+node_modules
+.git
+.gitignore
+LAUNCH_POSTS.md
+vitest.config.ts
+tsconfig.json
+*.log
+mcp-probe-badge.json

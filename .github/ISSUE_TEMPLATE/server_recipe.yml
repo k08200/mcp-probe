@@ -1,0 +1,41 @@
+name: Server recipe request
+description: Request or contribute a sidecar recipe for a real MCP server.
+title: "[Recipe]: "
+labels: ["recipe"]
+body:
+  - type: input
+    id: server
+    attributes:
+      label: MCP server package or URL
+      placeholder: "@vendor/server-name"
+    validations:
+      required: true
+  - type: dropdown
+    id: auth
+    attributes:
+      label: Auth model
+      options:
+        - none
+        - static token
+        - OAuth/browser handoff
+        - service account
+        - unknown
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tool names to probe
+      description: Paste relevant tool names from `mcp-probe --output json`.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Safe sample inputs
+      description: Provide read-only or harmless inputs that exercise the real call path. Redact secrets.
+      render: json
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Mention known warnings, expected 401/403 behavior, or CI constraints.

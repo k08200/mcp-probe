@@ -5,9 +5,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/node/v/@k08200/mcp-probe)](package.json)
 
-**Quality checker for MCP servers.** Validates protocol handshake, discovery, optional tool-call dry-runs, and response latency in one command.
+**CI readiness gate for MCP servers.** Validates protocol handshake, discovery, optional tool-call dry-runs, stderr noise, and response latency in one command.
 
-The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists 200+ servers and there was no way to know if they actually worked.
+The `npm audit` for the [MCP](https://modelcontextprotocol.io) ecosystem — because an MCP server can start, pass `tools/list`, and still fail every real tool call when auth handoff, browser OAuth, or downstream permissions are broken.
+
+Read the v1 launch post: [mcp-probe v1.0.0: A CI readiness gate for MCP servers](https://dev.to/k08200/mcp-probe-v100-a-ci-readiness-gate-for-mcp-servers-4ch0)
 
 ## Quick Start for CI
 
@@ -40,6 +42,24 @@ For teams running several MCP servers, use a config file:
 
 ```bash
 npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+```
+
+For production CI, add sidecar inputs so dry-runs call real read-only paths instead of schema-minimum placeholders:
+
+```json
+{
+  "tools": {
+    "logs_query": {
+      "input": {
+        "query": "service:web status:error",
+        "timeframe": "1h"
+      },
+      "expect": {
+        "not_error_code": [401, 403]
+      }
+    }
+  }
+}
 ```
 
 ```bash
