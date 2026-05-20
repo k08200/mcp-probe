@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.config.schema.json",
+  "title": "mcp-probe config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["servers"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "timeoutMs": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Default timeout in milliseconds."
+    },
+    "servers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "target"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "description": "npm package, local file path, or remote MCP URL."
+          },
+          "serverArgs": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "timeoutMs": {
+            "type": "number",
+            "minimum": 1
+          },
+          "transport": {
+            "enum": ["stdio", "http", "sse"]
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "HTTP headers for remote MCP servers. Supports ${ENV_VAR} interpolation."
+          },
+          "stderr": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "allow": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "fatal": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "probeTools": {
+            "type": "boolean"
+          },
+          "toolsFile": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

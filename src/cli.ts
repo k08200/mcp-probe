@@ -52,7 +52,7 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.1.0');
+  .version('1.2.0');
 
 program
   .command('init')
@@ -63,21 +63,36 @@ program
   .option('--sidecar-file <path>', 'sidecar tools file to write', '.mcp-probe.json')
   .option('--transport <mode>', 'transport mode: stdio | http | sse')
   .option('--header-env <name>', 'environment variable used for Authorization: Bearer ${NAME}')
+  .option('--discover', 'connect to the target and scaffold sidecar entries from discovered tools')
   .option('--github-actions', 'write .github/workflows/mcp-probe.yml')
   .option('--workflow-file <path>', 'GitHub Actions workflow file to write', '.github/workflows/mcp-probe.yml')
   .option('--force', 'overwrite existing files')
-  .action((opts: {
+  .action(async (opts: {
     target: string;
     name?: string;
     configFile: string;
     sidecarFile: string;
     transport?: string;
     headerEnv?: string;
+    discover?: boolean;
     githubActions?: boolean;
     workflowFile: string;
     force?: boolean;
   }) => {
     try {
+      const transport = parseTransport(opts.transport);
+      const headers = opts.headerEnv && process.env[opts.headerEnv]
+        ? { Authorization: `Bearer ${process.env[opts.headerEnv]}` }
+        : undefined;
+      const discoveredTools = opts.discover
+        ? (await checkMcpServer({
+            target: opts.target,
+            timeoutMs: 10000,
+            transport,
+            headers,
+          })).tools
+        : undefined;
+
       const result = initProject({
         target: opts.target,
         name: opts.name,
@@ -86,15 +101,19 @@ program
         workflowFile: opts.workflowFile,
         githubActions: Boolean(opts.githubActions),
         force: Boolean(opts.force),
-        transport: parseTransport(opts.transport),
+        transport,
         headerEnv: opts.headerEnv,
+        discoveredTools,
       });
 
       for (const file of result.files) {
         console.log(`${file.status === 'created' ? 'created' : 'skipped'} ${file.path}`);
       }
       console.log('');
-      console.log(`Next: edit ${opts.sidecarFile} with real tool names and safe sample inputs.`);
+      const next = opts.discover
+        ? `Next: review ${opts.sidecarFile} and replace schema-minimum values with safe real samples.`
+        : `Next: edit ${opts.sidecarFile} with real tool names and safe sample inputs.`;
+      console.log(next);
       console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary`);
     } catch (err) {
       console.error(err instanceof Error ? err.message : String(err));

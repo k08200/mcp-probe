@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.sidecar.schema.json",
+  "title": "mcp-probe tool sidecar",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tools"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "tools": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["input"],
+        "properties": {
+          "input": {
+            "type": "object",
+            "description": "Sample input passed to tools/call."
+          },
+          "expect": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "not_error_code": {
+                "type": "array",
+                "items": { "type": "number" },
+                "description": "HTTP/status codes that should be treated as warnings instead of failures."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

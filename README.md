@@ -18,6 +18,7 @@ Scaffold the config, sidecar, and GitHub Actions workflow:
 ```bash
 npx @k08200/mcp-probe@latest init \
   --target @your-org/your-mcp-server \
+  --discover \
   --github-actions
 ```
 
@@ -124,6 +125,9 @@ mcp-probe @modelcontextprotocol/server-memory
 # Scaffold config + .mcp-probe.json + optional GitHub Actions workflow
 mcp-probe init --target @modelcontextprotocol/server-memory --github-actions
 
+# Discover tool names first and scaffold sidecar entries automatically
+mcp-probe init --target @modelcontextprotocol/server-memory --discover --github-actions
+
 # Scaffold a remote server config with auth from an env var
 mcp-probe init \
   --target https://mcp.example.com/mcp \
@@ -194,7 +198,7 @@ mcp-probe @scope/server --tools-file .mcp-probe.json
 If you are starting from scratch, generate the files:
 
 ```bash
-mcp-probe init --target @your-org/your-mcp-server --github-actions
+mcp-probe init --target @your-org/your-mcp-server --discover --github-actions
 ```
 
 This creates:
@@ -206,6 +210,15 @@ This creates:
 | `.github/workflows/mcp-probe.yml` | GitHub Actions readiness gate. |
 
 Existing files are skipped unless you pass `--force`.
+
+Generated config and sidecar files include JSON Schema references:
+
+| Schema | File |
+|--------|------|
+| [`mcp-probe.config.schema.json`](schemas/mcp-probe.config.schema.json) | `mcp-probe.config.json` |
+| [`mcp-probe.sidecar.schema.json`](schemas/mcp-probe.sidecar.schema.json) | `.mcp-probe.json` |
+
+When `--discover` is enabled, mcp-probe connects to the target server, runs discovery, and pre-populates `.mcp-probe.json` with the discovered tool names and schema-minimum sample inputs. Review those values before using them as a production CI gate.
 
 Use `--config` when a project depends on several MCP servers and you want one CI command to validate all of them:
 

@@ -26,6 +26,7 @@ describe('initProject', () => {
 
       const config = JSON.parse(readFileSync(configFile, 'utf8'));
       expect(config).toEqual({
+        $schema: 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.config.schema.json',
         timeoutMs: 10000,
         servers: [
           {
@@ -38,8 +39,62 @@ describe('initProject', () => {
       });
 
       const sidecar = JSON.parse(readFileSync(toolsFile, 'utf8'));
+      expect(sidecar.$schema).toBe('https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.sidecar.schema.json');
       expect(sidecar.tools.replace_with_tool_name.input).toEqual({});
       expect(sidecar.tools.replace_with_tool_name.expect.not_error_code).toEqual([401, 403]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses discovered tools when provided', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-init-'));
+    const configFile = join(dir, 'mcp-probe.config.json');
+    const toolsFile = join(dir, '.mcp-probe.json');
+
+    try {
+      initProject({
+        target: '@test/server',
+        configFile,
+        toolsFile,
+        githubActions: false,
+        force: false,
+        discoveredTools: [
+          {
+            name: 'search',
+            inputSchema: {
+              type: 'object',
+              required: ['query', 'limit'],
+              properties: {
+                query: { type: 'string' },
+                limit: { type: 'integer' },
+              },
+            },
+          },
+          {
+            name: 'list',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                includeArchived: { type: 'boolean' },
+              },
+            },
+          },
+        ],
+      });
+
+      const sidecar = JSON.parse(readFileSync(toolsFile, 'utf8'));
+      expect(sidecar.tools).toEqual({
+        search: {
+          input: { query: '', limit: 0 },
+          expect: { not_error_code: [401, 403] },
+        },
+        list: {
+          input: { includeArchived: false },
+          expect: { not_error_code: [401, 403] },
+        },
+      });
+      expect(sidecar.tools).not.toHaveProperty('replace_with_tool_name');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

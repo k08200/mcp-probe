@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+
+- `mcp-probe init --discover` to connect to a target MCP server and pre-populate sidecar entries from discovered tool names.
+- JSON Schema files for `mcp-probe.config.json` and `.mcp-probe.json`.
+- Generated `$schema` references in scaffolded config and sidecar files.
+
+### Changed
+
+- `schemas` are now included in the npm package.
+
 ## 1.1.0
 
 ### Added

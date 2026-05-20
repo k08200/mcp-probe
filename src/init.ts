@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
-import type { TransportMode } from './types.js';
+import type { ToolInfo, TransportMode } from './types.js';
+
+const CONFIG_SCHEMA_URL = 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.config.schema.json';
+const SIDECAR_SCHEMA_URL = 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.sidecar.schema.json';
 
 export type InitOptions = {
   target: string;
@@ -12,6 +15,7 @@ export type InitOptions = {
   force: boolean;
   transport?: TransportMode;
   headerEnv?: string;
+  discoveredTools?: ToolInfo[];
 };
 
 export type InitFileResult = {
@@ -69,21 +73,74 @@ function buildConfig(options: InitOptions): unknown {
   }
 
   return {
+    $schema: CONFIG_SCHEMA_URL,
     timeoutMs: 10000,
     servers: [server],
   };
 }
 
-function buildToolsFile(): unknown {
+function minimalInputFromSchema(schema: unknown): Record<string, unknown> {
+  if (!schema || typeof schema !== 'object') return {};
+  const typed = schema as Record<string, unknown>;
+  const properties = typed.properties as Record<string, unknown> | undefined;
+  if (!properties) return {};
+
+  const required = (typed.required as string[] | undefined) ?? Object.keys(properties);
+  const input: Record<string, unknown> = {};
+
+  for (const key of required) {
+    const property = properties[key] as Record<string, unknown> | undefined;
+    const type = Array.isArray(property?.type) ? property?.type[0] : property?.type;
+
+    switch (type) {
+      case 'string':
+        input[key] = '';
+        break;
+      case 'number':
+      case 'integer':
+        input[key] = 0;
+        break;
+      case 'boolean':
+        input[key] = false;
+        break;
+      case 'array':
+        input[key] = [];
+        break;
+      case 'object':
+        input[key] = {};
+        break;
+      default:
+        input[key] = null;
+    }
+  }
+
+  return input;
+}
+
+function sidecarEntryForTool(tool: ToolInfo): unknown {
   return {
-    tools: {
-      replace_with_tool_name: {
-        input: {},
-        expect: {
-          not_error_code: [401, 403],
-        },
-      },
+    input: minimalInputFromSchema(tool.inputSchema),
+    expect: {
+      not_error_code: [401, 403],
     },
+  };
+}
+
+function buildToolsFile(discoveredTools?: ToolInfo[]): unknown {
+  const tools = discoveredTools && discoveredTools.length > 0
+    ? Object.fromEntries(discoveredTools.map((tool) => [tool.name, sidecarEntryForTool(tool)]))
+    : {
+        replace_with_tool_name: {
+          input: {},
+          expect: {
+            not_error_code: [401, 403],
+          },
+        },
+      };
+
+  return {
+    $schema: SIDECAR_SCHEMA_URL,
+    tools,
   };
 }
 
@@ -123,7 +180,7 @@ export function initProject(options: InitOptions): InitResult {
 
   files.push(writeFileIfAllowed(
     options.toolsFile,
-    json(buildToolsFile()),
+    json(buildToolsFile(options.discoveredTools)),
     options.force
   ));
 
