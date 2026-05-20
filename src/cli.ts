@@ -7,6 +7,7 @@ import { renderBatchTerminal, renderTerminal } from './reporters/terminal.js';
 import { renderJson } from './reporters/json-reporter.js';
 import { renderGithubActions } from './reporters/github.js';
 import { writeBadgeFile } from './reporters/badge.js';
+import { initProject } from './init.js';
 import type { TransportMode } from './types.js';
 
 const program = new Command();
@@ -51,7 +52,57 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.0.1')
+  .version('1.1.0');
+
+program
+  .command('init')
+  .description('scaffold mcp-probe config, sidecar inputs, and optional GitHub Actions workflow')
+  .requiredOption('--target <target>', 'npm package, local file path, or remote MCP URL')
+  .option('--name <name>', 'server name in the generated config')
+  .option('--config-file <path>', 'config file to write', 'mcp-probe.config.json')
+  .option('--sidecar-file <path>', 'sidecar tools file to write', '.mcp-probe.json')
+  .option('--transport <mode>', 'transport mode: stdio | http | sse')
+  .option('--header-env <name>', 'environment variable used for Authorization: Bearer ${NAME}')
+  .option('--github-actions', 'write .github/workflows/mcp-probe.yml')
+  .option('--workflow-file <path>', 'GitHub Actions workflow file to write', '.github/workflows/mcp-probe.yml')
+  .option('--force', 'overwrite existing files')
+  .action((opts: {
+    target: string;
+    name?: string;
+    configFile: string;
+    sidecarFile: string;
+    transport?: string;
+    headerEnv?: string;
+    githubActions?: boolean;
+    workflowFile: string;
+    force?: boolean;
+  }) => {
+    try {
+      const result = initProject({
+        target: opts.target,
+        name: opts.name,
+        configFile: opts.configFile,
+        toolsFile: opts.sidecarFile,
+        workflowFile: opts.workflowFile,
+        githubActions: Boolean(opts.githubActions),
+        force: Boolean(opts.force),
+        transport: parseTransport(opts.transport),
+        headerEnv: opts.headerEnv,
+      });
+
+      for (const file of result.files) {
+        console.log(`${file.status === 'created' ? 'created' : 'skipped'} ${file.path}`);
+      }
+      console.log('');
+      console.log(`Next: edit ${opts.sidecarFile} with real tool names and safe sample inputs.`);
+      console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary`);
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
   .argument('[target]', 'npm package, local file path, or remote MCP URL')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')

@@ -13,6 +13,14 @@ Read the v1 launch post: [mcp-probe v1.0.0: A CI readiness gate for MCP servers]
 
 ## Quick Start for CI
 
+Scaffold the config, sidecar, and GitHub Actions workflow:
+
+```bash
+npx @k08200/mcp-probe@latest init \
+  --target @your-org/your-mcp-server \
+  --github-actions
+```
+
 Add this workflow to any project that depends on MCP servers:
 
 ```yaml
@@ -111,6 +119,22 @@ npm install -g @k08200/mcp-probe
 # Check an npm package
 mcp-probe @modelcontextprotocol/server-memory
 
+# Scaffold config + .mcp-probe.json + optional GitHub Actions workflow
+mcp-probe init --target @modelcontextprotocol/server-memory --github-actions
+
+# Scaffold a remote server config with auth from an env var
+mcp-probe init \
+  --target https://mcp.example.com/mcp \
+  --transport http \
+  --header-env MCP_TOKEN \
+  --github-actions
+
+# Choose custom scaffold paths
+mcp-probe init \
+  --target @your-org/your-mcp-server \
+  --config-file ci/mcp-probe.config.json \
+  --sidecar-file ci/mcp-tools.json
+
 # Check a server that requires arguments (e.g. directories to serve)
 mcp-probe @modelcontextprotocol/server-filesystem /tmp /Users/me/projects
 
@@ -164,6 +188,22 @@ mcp-probe @scope/server --tools-file .mcp-probe.json
 | **Tool call dry-run** | Optional `tools/call` checks via `--probe-tools` or `--tools-file`. |
 
 ## Batch CI gate
+
+If you are starting from scratch, generate the files:
+
+```bash
+mcp-probe init --target @your-org/your-mcp-server --github-actions
+```
+
+This creates:
+
+| File | Purpose |
+|------|---------|
+| `mcp-probe.config.json` | Batch config with one server and `probeTools: true`. |
+| `.mcp-probe.json` | Sidecar template for real tool-call sample inputs. |
+| `.github/workflows/mcp-probe.yml` | GitHub Actions readiness gate. |
+
+Existing files are skipped unless you pass `--force`.
 
 Use `--config` when a project depends on several MCP servers and you want one CI command to validate all of them:
 

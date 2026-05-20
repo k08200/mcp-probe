@@ -6,7 +6,7 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { redactText } from '../redact.js';
 import type { ProbeOptions, ProbeResult, StderrRules, ToolCallResult } from '../types.js';
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
