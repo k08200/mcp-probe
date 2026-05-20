@@ -485,6 +485,10 @@ mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
 
 Issues and PRs are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 [MIT](LICENSE)
