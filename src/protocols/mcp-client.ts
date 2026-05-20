@@ -3,9 +3,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { redactText } from '../redact.js';
 import type { ProbeOptions, ProbeResult, StderrRules, ToolCallResult } from '../types.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
@@ -139,6 +140,7 @@ function createTransport(options: ProbeOptions): { transport: Transport; stderrC
 
 export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult> {
   const { transport, stderrChunks } = createTransport(options);
+  const secretValues = Object.values(options.headers ?? {});
 
   const client = new Client(
     { name: 'mcp-probe', version: VERSION },
@@ -155,7 +157,7 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
       ? firstMeaningfulLine(stderrText, fallback, options.stderr)
       : fallback;
     await client.close().catch(() => undefined);
-    throw new Error(reason);
+    throw new Error(redactText(reason, secretValues));
   }
   const connectLatencyMs = Date.now() - connectStart;
 
@@ -211,19 +213,20 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
           );
           const toolError = toolResultErrorMessage(result);
           if (toolError) {
-            const status = isAuthError(toolError, notErrorCodes) ? 'warn' : 'fail';
+            const error = redactText(toolError, secretValues);
+            const status = isAuthError(error, notErrorCodes) ? 'warn' : 'fail';
             toolCallResults.push({
               tool: tool.name,
               status,
               latencyMs: Date.now() - start,
-              error: toolError,
+              error,
               source,
             });
             continue;
           }
           toolCallResults.push({ tool: tool.name, status: 'pass', latencyMs: Date.now() - start, source });
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = redactText(err instanceof Error ? err.message : String(err), secretValues);
           const status = isAuthError(msg, notErrorCodes) ? 'warn' : 'fail';
           toolCallResults.push({
             tool: tool.name,

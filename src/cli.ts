@@ -51,7 +51,7 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.0.0')
+  .version('1.0.1')
   .argument('[target]', 'npm package, local file path, or remote MCP URL')
   .argument('[server-args...]', 'extra arguments passed directly to the MCP server')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')

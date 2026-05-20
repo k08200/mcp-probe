@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'fs';
 import { probeMcpServer } from './protocols/mcp-client.js';
+import { redactText, redactUnknown } from './redact.js';
 import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, ToolSidecar, TransportMode } from './types.js';
 
 const SIDECAR_FILENAME = '.mcp-probe.json';
@@ -73,6 +74,7 @@ function deriveOverallStatus(checks: CheckItem[]): CheckStatus {
 export async function checkMcpServer(options: CheckOptions): Promise<CheckReport> {
   const startTime = Date.now();
   const checks: CheckItem[] = [];
+  const secretValues = Object.values(options.headers ?? {});
   const resolved = resolveTarget(options.target, options.transport);
   const args = [...(resolved.args ?? []), ...(options.serverArgs ?? [])];
   const probeTools = options.probeTools || Boolean(options.toolsFile);
@@ -83,7 +85,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
   checks.push({
     name: 'Target resolution',
     status: 'pass',
-    message: resolutionMessage,
+    message: redactText(resolutionMessage, secretValues),
   });
 
   try {
@@ -164,7 +166,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       });
     }
 
-    return {
+    return redactUnknown({
       target: options.target,
       timestamp: new Date().toISOString(),
       overallStatus: deriveOverallStatus(checks),
@@ -175,9 +177,9 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       prompts: probe.prompts,
       toolCallResults: probe.toolCallResults,
       totalLatencyMs: Date.now() - startTime,
-    };
+    }, secretValues);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = redactText(error instanceof Error ? error.message : String(error), secretValues);
     const isSidecarError = message.includes('tools file');
     checks.push({
       name: isSidecarError ? 'Tool sidecar' : 'MCP protocol handshake',
@@ -185,7 +187,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       message,
     });
 
-    return {
+    return redactUnknown({
       target: options.target,
       timestamp: new Date().toISOString(),
       overallStatus: 'fail',
@@ -194,6 +196,6 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       resources: [],
       prompts: [],
       totalLatencyMs: Date.now() - startTime,
-    };
+    }, secretValues);
   }
 }

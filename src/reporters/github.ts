@@ -1,4 +1,5 @@
 import { appendFileSync } from 'fs';
+import { redactText } from '../redact.js';
 import type { BatchReport, CheckItem, CheckReport, CheckStatus, ToolCallResult } from '../types.js';
 
 type AnyReport = CheckReport | BatchReport;
@@ -14,7 +15,7 @@ function isBatchReport(report: AnyReport): report is BatchReport {
 }
 
 function escapeCell(value: unknown): string {
-  return String(value ?? '')
+  return redactText(String(value ?? ''))
     .replace(/\|/g, '\\|')
     .replace(/\r?\n/g, '<br>');
 }
@@ -63,7 +64,7 @@ function toolCallsTable(results: ToolCallResult[] | undefined): string {
 
 function singleSummary(report: CheckReport): string {
   const lines = [
-    `## mcp-probe: ${report.target}`,
+    `## mcp-probe: ${redactText(report.target)}`,
     '',
     `**Status:** ${STATUS_ICON[report.overallStatus]}  `,
     `**Total:** ${report.totalLatencyMs}ms`,
@@ -83,7 +84,7 @@ function batchSummary(report: BatchReport): string {
   const failed = report.servers.filter((server) => server.report.overallStatus === 'fail').length;
 
   const lines = [
-    `## mcp-probe batch: ${report.target}`,
+    `## mcp-probe batch: ${redactText(report.target)}`,
     '',
     `**Status:** ${STATUS_ICON[report.overallStatus]}  `,
     `**Servers:** ${passed} passed, ${warned} warned, ${failed} failed  `,
@@ -121,14 +122,14 @@ function annotation(level: 'warning' | 'error', title: string, message: string):
 function annotationsForCheck(prefix: string, check: CheckItem): string[] {
   if (check.status === 'pass') return [];
   const level = check.status === 'fail' ? 'error' : 'warning';
-  return [annotation(level, `${prefix}: ${check.name}`, check.message)];
+  return [annotation(level, `${redactText(prefix)}: ${check.name}`, redactText(check.message))];
 }
 
 function annotationsForToolCall(prefix: string, result: ToolCallResult): string[] {
   if (result.status === 'pass') return [];
   const level = result.status === 'fail' ? 'error' : 'warning';
   const message = result.error ?? `${result.tool} returned ${result.status}`;
-  return [annotation(level, `${prefix}: ${result.tool}`, message)];
+  return [annotation(level, `${redactText(prefix)}: ${result.tool}`, redactText(message))];
 }
 
 export function buildGithubAnnotations(report: AnyReport): string[] {

@@ -97,6 +97,21 @@ describe('checkMcpServer', () => {
     );
   });
 
+  it('redacts secrets from failed probe messages and target URLs', async () => {
+    mockedProbe.mockRejectedValue(new Error('upstream failed with Bearer abcdefghijklmnop'));
+
+    const report = await checkMcpServer({
+      target: 'https://mcp.example.com/mcp?token=abc123456789',
+      timeoutMs: 5000,
+      headers: { Authorization: 'Bearer abcdefghijklmnop' },
+    });
+
+    expect(report.target).toBe('https://mcp.example.com/mcp?token=[REDACTED]');
+    expect(report.checks.find((c) => c.status === 'fail')?.message).toContain('Bearer [REDACTED]');
+    expect(JSON.stringify(report)).not.toContain('abcdefghijklmnop');
+    expect(JSON.stringify(report)).not.toContain('abc123456789');
+  });
+
   it('returns warn when server has no tools', async () => {
     mockedProbe.mockResolvedValue(makeProbeResult({ tools: [] }));
 

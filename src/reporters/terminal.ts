@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { redactText } from '../redact.js';
 import type { BatchReport, CheckReport, CheckStatus } from '../types.js';
 
 const ICONS: Record<CheckStatus, string> = {
@@ -17,7 +18,7 @@ const DIVIDER = chalk.dim('─'.repeat(52));
 
 export function renderTerminal(report: CheckReport): void {
   console.log('');
-  console.log(chalk.bold.white('mcp-probe') + '  ' + chalk.dim(report.target));
+  console.log(chalk.bold.white('mcp-probe') + '  ' + chalk.dim(redactText(report.target)));
   console.log(DIVIDER);
 
   for (const check of report.checks) {
@@ -25,7 +26,7 @@ export function renderTerminal(report: CheckReport): void {
       ? chalk.dim(` ${check.latencyMs}ms`)
       : '';
     console.log(`  ${ICONS[check.status]}  ${chalk.bold(check.name)}${latency}`);
-    console.log(`     ${chalk.dim(check.message)}`);
+    console.log(`     ${chalk.dim(redactText(check.message))}`);
   }
 
   console.log(DIVIDER);
@@ -73,7 +74,7 @@ export function renderTerminal(report: CheckReport): void {
       const icon = ICONS[r.status];
       const latency = chalk.dim(` ${r.latencyMs}ms`);
       const source = chalk.dim(` [${r.source}]`);
-      const err = r.error ? chalk.dim(`  — ${r.error.slice(0, 80)}`) : '';
+      const err = r.error ? chalk.dim(`  — ${redactText(r.error).slice(0, 80)}`) : '';
       console.log(`    ${icon} ${chalk.bold(r.tool)}${source}${latency}${err}`);
     }
   }
@@ -88,7 +89,7 @@ export function renderTerminal(report: CheckReport): void {
 
 export function renderBatchTerminal(report: BatchReport): void {
   console.log('');
-  console.log(chalk.bold.white('mcp-probe batch') + '  ' + chalk.dim(report.target));
+  console.log(chalk.bold.white('mcp-probe batch') + '  ' + chalk.dim(redactText(report.target)));
   console.log(DIVIDER);
 
   for (const server of report.servers) {
@@ -97,7 +98,7 @@ export function renderBatchTerminal(report: BatchReport): void {
     const tools = server.report.tools.length;
     const latency = chalk.dim(` ${server.report.totalLatencyMs}ms`);
     console.log(`  ${ICONS[status]}  ${chalk.bold(server.name)}  ${label}${latency}`);
-    console.log(chalk.dim(`     ${server.report.target}  (${tools} tool${tools !== 1 ? 's' : ''})`));
+    console.log(chalk.dim(`     ${redactText(server.report.target)}  (${tools} tool${tools !== 1 ? 's' : ''})`));
   }
 
   console.log(DIVIDER);

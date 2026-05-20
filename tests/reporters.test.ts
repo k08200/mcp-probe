@@ -184,4 +184,20 @@ describe('renderJson', () => {
     const parsed = JSON.parse(output);
     expect(parsed.overallStatus).toBe('fail');
   });
+
+  it('redacts secrets in JSON output', () => {
+    const report = makeReport({
+      target: 'https://mcp.example.com/mcp?api_key=sk_live_123456789',
+      checks: [{ name: 'MCP protocol handshake', status: 'fail', message: 'Bearer abcdefghijklmnop' }],
+      overallStatus: 'fail',
+    });
+
+    renderJson(report);
+
+    const output = writeSpy.mock.calls[0][0] as string;
+    expect(output).toContain('api_key=[REDACTED]');
+    expect(output).toContain('Bearer [REDACTED]');
+    expect(output).not.toContain('sk_live_123456789');
+    expect(output).not.toContain('abcdefghijklmnop');
+  });
 });
