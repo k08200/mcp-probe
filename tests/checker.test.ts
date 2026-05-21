@@ -95,6 +95,9 @@ describe('checkMcpServer', () => {
     expect(report.checks.find((c) => c.name === 'MCP protocol handshake')?.message).toContain(
       'ENOENT'
     );
+    expect(report.checks.find((c) => c.name === 'MCP protocol handshake')?.issue?.code).toBe(
+      'TARGET_NOT_FOUND'
+    );
   });
 
   it('redacts secrets from failed probe messages and target URLs', async () => {
@@ -120,6 +123,7 @@ describe('checkMcpServer', () => {
     expect(report.overallStatus).toBe('warn');
     expect(report.tools).toHaveLength(0);
     expect(report.checks.find((c) => c.name === 'Tools discovery')?.status).toBe('warn');
+    expect(report.checks.find((c) => c.name === 'Tools discovery')?.issue?.code).toBe('NO_TOOLS');
   });
 
   it('includes latency in tool-related checks', async () => {
@@ -144,6 +148,7 @@ describe('checkMcpServer', () => {
     expect(report.overallStatus).toBe('warn');
     const schemaCheck = report.checks.find((c) => c.name === 'Tool schema validation');
     expect(schemaCheck?.status).toBe('warn');
+    expect(schemaCheck?.issue?.code).toBe('TOOL_SCHEMA_INVALID');
   });
 
   it('passes probe options with correct command for npm packages', async () => {
@@ -222,6 +227,7 @@ describe('checkMcpServer', () => {
     expect(check?.status).toBe('fail');
     expect(check?.message).toContain('1 passed');
     expect(check?.message).toContain('1 failed');
+    expect(check?.issue?.code).toBe('TOOL_CALL_FAILED');
   });
 
   it('tool call dry-run is warn when only auth errors occur', async () => {
@@ -238,6 +244,7 @@ describe('checkMcpServer', () => {
     const check = report.checks.find((c) => c.name === 'Tool call dry-run');
     expect(check?.status).toBe('warn');
     expect(check?.message).toContain('auth/permission');
+    expect(check?.issue?.code).toBe('TOOL_CALL_AUTH');
   });
 
   it('does not add dry-run check when probeTools is false', async () => {
@@ -274,6 +281,7 @@ describe('checkMcpServer', () => {
     expect(report.checks.find((c) => c.name === 'Tool sidecar')?.message).toContain(
       'Cannot read tools file'
     );
+    expect(report.checks.find((c) => c.name === 'Tool sidecar')?.issue?.code).toBe('SIDECAR_MISSING');
     expect(mockedProbe).not.toHaveBeenCalled();
   });
 
@@ -324,6 +332,7 @@ describe('checkMcpServer', () => {
       expect(report.checks.find((c) => c.name === 'Tool sidecar')?.message).toContain(
         'search.input must be an object'
       );
+      expect(report.checks.find((c) => c.name === 'Tool sidecar')?.issue?.code).toBe('SIDECAR_INVALID');
       expect(mockedProbe).not.toHaveBeenCalled();
     } finally {
       rmSync(dir, { recursive: true, force: true });

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0
+
+### Added
+
+- Stable `issue.code` and `issue.hint` metadata for failed and warning checks.
+- Remediation hints in terminal output, JSON output, GitHub Actions summaries, and workflow annotations.
+- Tool-call issue classification for auth handoff failures, timeouts, auto-generated dry-run input failures, and sidecar input failures.
+- Handshake issue classification for target resolution failures, timeouts, auth-like initialization failures, and generic MCP initialize failures.
+
 ## 1.2.0
 
 ### Added

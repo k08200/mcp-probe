@@ -193,6 +193,37 @@ mcp-probe @scope/server --tools-file .mcp-probe.json
 | **Prompts discovery** | Runs `prompts/list` when the server advertises prompts. |
 | **Tool call dry-run** | Optional `tools/call` checks via `--probe-tools` or `--tools-file`. |
 
+## Issue codes and remediation hints
+
+When a check warns or fails, mcp-probe attaches stable issue metadata:
+
+```json
+{
+  "name": "Tool call dry-run",
+  "status": "warn",
+  "message": "1 auth/permission errors (1 sidecar, 0 auto)",
+  "issue": {
+    "code": "TOOL_CALL_AUTH",
+    "hint": "At least one tool call hit auth or permission handling. This often means CI needs tokens or the server needs non-browser auth."
+  }
+}
+```
+
+These hints appear in terminal output, JSON output, GitHub Actions summaries, and workflow annotations so PR failures point at the likely fix instead of only showing raw MCP errors.
+
+Common issue codes:
+
+| Code | Meaning |
+|------|---------|
+| `TARGET_NOT_FOUND` | The npm package, local file, or executable could not be started. |
+| `HANDSHAKE_TIMEOUT` | The server did not complete MCP `initialize` before the timeout. |
+| `HANDSHAKE_AUTH` | Initialization failed with an auth-like error. |
+| `NO_TOOLS` | The server responded but did not expose tools. |
+| `TOOL_SCHEMA_INVALID` | A discovered tool has an invalid schema. |
+| `TOOL_CALL_AUTH` | A real tool call reached auth or permission handling. |
+| `AUTO_DRY_RUN_INPUT` | Auto-generated schema-minimum input failed; add sidecar inputs. |
+| `TOOL_CALL_FAILED` | A sidecar tool call returned a non-auth error. |
+
 ## Batch CI gate
 
 If you are starting from scratch, generate the files:
@@ -452,25 +483,43 @@ Tool names vary by MCP server implementation. Run your server once with `--outpu
 ## JSON output
 
 ```bash
-mcp-probe @modelcontextprotocol/server-memory --probe-tools --output json
+mcp-probe @your-org/datadog-mcp --tools-file .mcp-probe.json --output json
 ```
 
 ```json
 {
-  "target": "@modelcontextprotocol/server-memory",
+  "target": "@your-org/datadog-mcp",
   "timestamp": "2026-05-17T12:00:00.000Z",
-  "overallStatus": "pass",
+  "overallStatus": "warn",
   "checks": [
-    { "name": "Target resolution", "status": "pass", "message": "npx --yes @modelcontextprotocol/server-memory" },
-    { "name": "MCP protocol handshake", "status": "pass", "message": "memory-server v0.6.3", "latencyMs": 1392 },
-    { "name": "Tools discovery", "status": "pass", "message": "Found 9 tools", "latencyMs": 33 },
+    { "name": "Target resolution", "status": "pass", "message": "npx --yes @your-org/datadog-mcp" },
+    { "name": "MCP protocol handshake", "status": "pass", "message": "datadog-mcp v1.0.0", "latencyMs": 1392 },
+    { "name": "Tools discovery", "status": "pass", "message": "Found 12 tools", "latencyMs": 33 },
     { "name": "Tool schema validation", "status": "pass", "message": "All tool schemas are valid" },
-    { "name": "Tool call dry-run", "status": "pass", "message": "9 passed (2 sidecar, 7 auto)" }
+    {
+      "name": "Tool call dry-run",
+      "status": "warn",
+      "message": "1 auth/permission errors (1 sidecar, 0 auto)",
+      "issue": {
+        "code": "TOOL_CALL_AUTH",
+        "hint": "At least one tool call hit auth or permission handling. This often means CI needs tokens or the server needs non-browser auth."
+      }
+    }
   ],
-  "serverInfo": { "name": "memory-server", "version": "0.6.3", "capabilities": ["tools"] },
-  "tools": [{ "name": "create_entities", "description": "Create multiple new entities in the knowledge graph" }],
+  "serverInfo": { "name": "datadog-mcp", "version": "1.0.0", "capabilities": ["tools"] },
+  "tools": [{ "name": "logs_query", "description": "Query Datadog logs" }],
   "toolCallResults": [
-    { "tool": "read_graph", "status": "pass", "latencyMs": 41, "source": "auto" }
+    {
+      "tool": "logs_query",
+      "status": "warn",
+      "latencyMs": 41,
+      "source": "sidecar",
+      "error": "401 Unauthorized",
+      "issue": {
+        "code": "TOOL_CALL_AUTH",
+        "hint": "The server registered this tool, but the call path hit auth or permission handling. Check OAuth/browser handoff, service tokens, and CI secrets."
+      }
+    }
   ],
   "totalLatencyMs": 1455
 }

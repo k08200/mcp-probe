@@ -1,10 +1,31 @@
 export type CheckStatus = 'pass' | 'fail' | 'warn';
 
+export type IssueCode =
+  | 'NO_TOOLS'
+  | 'TOOL_SCHEMA_INVALID'
+  | 'TOOL_CALL_AUTH'
+  | 'TOOL_CALL_FAILED'
+  | 'TOOL_CALL_TIMEOUT'
+  | 'AUTO_DRY_RUN_INPUT'
+  | 'SIDECAR_MISSING'
+  | 'SIDECAR_INVALID'
+  | 'HANDSHAKE_TIMEOUT'
+  | 'HANDSHAKE_AUTH'
+  | 'HANDSHAKE_FAILED'
+  | 'TARGET_NOT_FOUND';
+
+export type Issue = {
+  code: IssueCode;
+  hint: string;
+  docsUrl?: string;
+};
+
 export type CheckItem = {
   name: string;
   status: CheckStatus;
   message: string;
   latencyMs?: number;
+  issue?: Issue;
 };
 
 export type ToolInfo = {
@@ -19,6 +40,7 @@ export type ToolCallResult = {
   latencyMs: number;
   error?: string;
   source: 'sidecar' | 'auto';
+  issue?: Issue;
 };
 
 export type ToolSidecarEntry = {

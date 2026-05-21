@@ -3,10 +3,11 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
 import type { ProbeOptions, ProbeResult, StderrRules, ToolCallResult } from '../types.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
@@ -215,26 +216,26 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
           if (toolError) {
             const error = redactText(toolError, secretValues);
             const status = isAuthError(error, notErrorCodes) ? 'warn' : 'fail';
-            toolCallResults.push({
+            toolCallResults.push(withIssue({
               tool: tool.name,
               status,
               latencyMs: Date.now() - start,
               error,
               source,
-            });
+            }));
             continue;
           }
           toolCallResults.push({ tool: tool.name, status: 'pass', latencyMs: Date.now() - start, source });
         } catch (err) {
           const msg = redactText(err instanceof Error ? err.message : String(err), secretValues);
           const status = isAuthError(msg, notErrorCodes) ? 'warn' : 'fail';
-          toolCallResults.push({
+          toolCallResults.push(withIssue({
             tool: tool.name,
             status,
             latencyMs: Date.now() - start,
             error: msg,
             source,
-          });
+          }));
         }
       }
     }

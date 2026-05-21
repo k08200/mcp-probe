@@ -33,11 +33,12 @@ function row(values: unknown[]): string {
 
 function checksTable(checks: CheckItem[]): string {
   return [
-    row(['Status', 'Check', 'Message', 'Latency']),
-    row(['---', '---', '---', '---']),
+    row(['Status', 'Check', 'Issue', 'Message', 'Latency']),
+    row(['---', '---', '---', '---', '---']),
     ...checks.map((check) => row([
       STATUS_ICON[check.status],
       check.name,
+      check.issue ? `${check.issue.code}: ${check.issue.hint}` : '',
       check.message,
       check.latencyMs !== undefined ? `${check.latencyMs}ms` : '',
     ])),
@@ -50,12 +51,13 @@ function toolCallsTable(results: ToolCallResult[] | undefined): string {
     '',
     '### Tool Call Dry-run',
     '',
-    row(['Status', 'Tool', 'Source', 'Latency', 'Error']),
-    row(['---', '---', '---', '---', '---']),
+    row(['Status', 'Tool', 'Source', 'Issue', 'Latency', 'Error']),
+    row(['---', '---', '---', '---', '---', '---']),
     ...results.map((result) => row([
       STATUS_ICON[result.status],
       result.tool,
       result.source,
+      result.issue ? `${result.issue.code}: ${result.issue.hint}` : '',
       `${result.latencyMs}ms`,
       result.error ?? '',
     ])),
@@ -122,14 +124,16 @@ function annotation(level: 'warning' | 'error', title: string, message: string):
 function annotationsForCheck(prefix: string, check: CheckItem): string[] {
   if (check.status === 'pass') return [];
   const level = check.status === 'fail' ? 'error' : 'warning';
-  return [annotation(level, `${redactText(prefix)}: ${check.name}`, redactText(check.message))];
+  const hint = check.issue ? `\n\n${check.issue.code}: ${check.issue.hint}` : '';
+  return [annotation(level, `${redactText(prefix)}: ${check.name}`, redactText(`${check.message}${hint}`))];
 }
 
 function annotationsForToolCall(prefix: string, result: ToolCallResult): string[] {
   if (result.status === 'pass') return [];
   const level = result.status === 'fail' ? 'error' : 'warning';
   const message = result.error ?? `${result.tool} returned ${result.status}`;
-  return [annotation(level, `${redactText(prefix)}: ${result.tool}`, redactText(message))];
+  const hint = result.issue ? `\n\n${result.issue.code}: ${result.issue.hint}` : '';
+  return [annotation(level, `${redactText(prefix)}: ${result.tool}`, redactText(`${message}${hint}`))];
 }
 
 export function buildGithubAnnotations(report: AnyReport): string[] {

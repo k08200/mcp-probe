@@ -27,6 +27,10 @@ export function renderTerminal(report: CheckReport): void {
       : '';
     console.log(`  ${ICONS[check.status]}  ${chalk.bold(check.name)}${latency}`);
     console.log(`     ${chalk.dim(redactText(check.message))}`);
+    if (check.issue) {
+      const issue = `${check.issue.code}: ${check.issue.hint}`;
+      console.log(`     ${chalk.yellow(redactText(issue))}`);
+    }
   }
 
   console.log(DIVIDER);
@@ -76,6 +80,10 @@ export function renderTerminal(report: CheckReport): void {
       const source = chalk.dim(` [${r.source}]`);
       const err = r.error ? chalk.dim(`  — ${redactText(r.error).slice(0, 80)}`) : '';
       console.log(`    ${icon} ${chalk.bold(r.tool)}${source}${latency}${err}`);
+      if (r.issue) {
+        const issue = `${r.issue.code}: ${r.issue.hint}`;
+        console.log(`      ${chalk.yellow(redactText(issue))}`);
+      }
     }
   }
 

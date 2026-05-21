@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
+import { withIssue } from './issues.js';
 import { probeMcpServer } from './protocols/mcp-client.js';
 import { redactText, redactUnknown } from './redact.js';
 import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, ToolSidecar, TransportMode } from './types.js';
@@ -82,11 +83,11 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
     ? `${resolved.command} ${args.join(' ')}`
     : `${resolved.transport} ${resolved.url}`;
 
-  checks.push({
+  checks.push(withIssue({
     name: 'Target resolution',
     status: 'pass',
     message: redactText(resolutionMessage, secretValues),
-  });
+  }));
 
   try {
     const sidecar = probeTools ? loadSidecar(options.toolsFile) : undefined;
@@ -102,50 +103,50 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       sidecar,
     });
 
-    checks.push({
+    checks.push(withIssue({
       name: 'MCP protocol handshake',
       status: 'pass',
       message: `${probe.serverInfo.name} v${probe.serverInfo.version}`,
       latencyMs: probe.connectLatencyMs,
-    });
+    }));
 
     const toolsStatus: CheckStatus = probe.tools.length > 0 ? 'pass' : 'warn';
-    checks.push({
+    checks.push(withIssue({
       name: 'Tools discovery',
       status: toolsStatus,
       message: probe.tools.length > 0
         ? `Found ${probe.tools.length} tool${probe.tools.length !== 1 ? 's' : ''}`
         : 'No tools registered — server may be resources/prompts-only',
       latencyMs: probe.toolsLatencyMs,
-    });
+    }));
 
     const toolsMissingName = probe.tools.filter((t) => !t.name);
     if (probe.tools.length > 0) {
-      checks.push({
+      checks.push(withIssue({
         name: 'Tool schema validation',
         status: toolsMissingName.length > 0 ? 'warn' : 'pass',
         message: toolsMissingName.length > 0
           ? `${toolsMissingName.length} tool(s) missing required name field`
           : 'All tool schemas are valid',
-      });
+      }));
     }
 
     if (probe.resources.length > 0 || probe.resourcesLatencyMs !== undefined) {
-      checks.push({
+      checks.push(withIssue({
         name: 'Resources discovery',
         status: 'pass',
         message: `Found ${probe.resources.length} resource${probe.resources.length !== 1 ? 's' : ''}`,
         latencyMs: probe.resourcesLatencyMs,
-      });
+      }));
     }
 
     if (probe.prompts.length > 0 || probe.promptsLatencyMs !== undefined) {
-      checks.push({
+      checks.push(withIssue({
         name: 'Prompts discovery',
         status: 'pass',
         message: `Found ${probe.prompts.length} prompt${probe.prompts.length !== 1 ? 's' : ''}`,
         latencyMs: probe.promptsLatencyMs,
-      });
+      }));
     }
 
     if (probe.toolCallResults && probe.toolCallResults.length > 0) {
@@ -159,11 +160,11 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       if (warned.length > 0) parts.push(`${warned.length} auth/permission errors`);
       if (failed.length > 0) parts.push(`${failed.length} failed`);
       const sourceNote = sidecarCount > 0 ? ` (${sidecarCount} sidecar, ${probe.toolCallResults.length - sidecarCount} auto)` : '';
-      checks.push({
+      checks.push(withIssue({
         name: 'Tool call dry-run',
         status,
         message: parts.join(', ') + sourceNote,
-      });
+      }));
     }
 
     return redactUnknown({
@@ -181,11 +182,11 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
   } catch (error) {
     const message = redactText(error instanceof Error ? error.message : String(error), secretValues);
     const isSidecarError = message.includes('tools file');
-    checks.push({
+    checks.push(withIssue({
       name: isSidecarError ? 'Tool sidecar' : 'MCP protocol handshake',
       status: 'fail',
       message,
-    });
+    }));
 
     return redactUnknown({
       target: options.target,

@@ -27,7 +27,7 @@ describe('github reporter', () => {
     }));
 
     expect(summary).toContain('## mcp-probe: @test/server');
-    expect(summary).toContain('| Status | Check | Message | Latency |');
+    expect(summary).toContain('| Status | Check | Issue | Message | Latency |');
     expect(summary).toContain('Tool Call Dry-run');
     expect(summary).toContain('read_file');
   });
@@ -58,6 +58,44 @@ describe('github reporter', () => {
     }));
 
     expect(annotations[0]).toContain('line1%0Aline2 %25 done');
+  });
+
+  it('includes issue codes and hints in summaries and annotations', () => {
+    const report = makeReport({
+      overallStatus: 'warn',
+      checks: [
+        {
+          name: 'Tool call dry-run',
+          status: 'warn',
+          message: '1 auth/permission errors',
+          issue: {
+            code: 'TOOL_CALL_AUTH',
+            hint: 'Check OAuth/browser handoff and CI secrets.',
+          },
+        },
+      ],
+      toolCallResults: [
+        {
+          tool: 'logs_query',
+          status: 'warn',
+          latencyMs: 50,
+          error: '401 Unauthorized',
+          source: 'sidecar',
+          issue: {
+            code: 'TOOL_CALL_AUTH',
+            hint: 'Check OAuth/browser handoff and CI secrets.',
+          },
+        },
+      ],
+    });
+
+    const summary = buildGithubSummary(report);
+    const annotations = buildGithubAnnotations(report);
+
+    expect(summary).toContain('TOOL_CALL_AUTH: Check OAuth/browser handoff and CI secrets.');
+    expect(annotations[0]).toContain('TOOL_CALL_AUTH');
+    expect(annotations[0]).toContain('Check OAuth/browser handoff and CI secrets.');
+    expect(annotations[1]).toContain('TOOL_CALL_AUTH');
   });
 
   it('builds a batch summary with per-server details for non-pass servers', () => {
