@@ -29,6 +29,35 @@
                 "type": "array",
                 "items": { "type": "number" },
                 "description": "HTTP/status codes that should be treated as warnings instead of failures."
+              },
+              "status": {
+                "type": "string",
+                "enum": ["pass", "fail", "warn"],
+                "description": "Expected final status for this tool call. Use fail for negative probes such as denied writes."
+              },
+              "requiredFields": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Field names that must appear anywhere in the tool result payload."
+              },
+              "maxRows": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Maximum allowed row count. Uses rowCount, rowsReturned, or common rows/data/items arrays."
+              },
+              "errorCode": {
+                "type": "string",
+                "description": "Stable error code expected in an error response."
+              },
+              "contains": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Text snippets that must appear in the result or error payload."
+              },
+              "notContains": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Text snippets that must not appear in the result or error payload. Use this to catch leaked internals."
               }
             }
           }

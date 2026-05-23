@@ -17,6 +17,14 @@ function isTimeout(message: string | undefined): boolean {
 export function issueForToolCall(result: ToolCallResult): Issue | undefined {
   if (result.status === 'pass') return undefined;
 
+  if (result.assertions?.some((assertion) => assertion.status === 'fail')) {
+    return {
+      code: 'CONTRACT_ASSERTION_FAILED',
+      hint: 'The tool call completed, but its output did not satisfy the sidecar contract. Check required metadata, row limits, stable error codes, and leak assertions.',
+      docsUrl: `${DOCS_BASE}tool-call-contract-assertions`,
+    };
+  }
+
   if (isAuthLike(result.error)) {
     return {
       code: 'TOOL_CALL_AUTH',
@@ -118,12 +126,15 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
   }
 
   if (check.name === 'Tool call dry-run') {
+    const failedContract = message.includes('contract assertion');
     return {
-      code: check.status === 'warn' ? 'TOOL_CALL_AUTH' : 'TOOL_CALL_FAILED',
-      hint: check.status === 'warn'
+      code: failedContract ? 'CONTRACT_ASSERTION_FAILED' : check.status === 'warn' ? 'TOOL_CALL_AUTH' : 'TOOL_CALL_FAILED',
+      hint: failedContract
+        ? 'At least one tool call completed but failed its sidecar contract. Inspect toolCallResults[].assertions in JSON output.'
+        : check.status === 'warn'
         ? 'At least one tool call hit auth or permission handling. This often means CI needs tokens or the server needs non-browser auth.'
         : 'At least one tool call failed. Inspect toolCallResults in JSON output for the exact tool and add or refine sidecar inputs.',
-      docsUrl: `${DOCS_BASE}tool-call-dry-runs`,
+      docsUrl: `${DOCS_BASE}${failedContract ? 'tool-call-contract-assertions' : 'tool-call-dry-runs'}`,
     };
   }
 

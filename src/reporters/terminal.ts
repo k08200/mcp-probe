@@ -84,6 +84,10 @@ export function renderTerminal(report: CheckReport): void {
         const issue = `${r.issue.code}: ${r.issue.hint}`;
         console.log(`      ${chalk.yellow(redactText(issue))}`);
       }
+      for (const assertion of r.assertions ?? []) {
+        const assertionIcon = ICONS[assertion.status];
+        console.log(`      ${assertionIcon} ${chalk.dim(`${assertion.name}: ${redactText(assertion.message)}`)}`);
+      }
     }
   }
 

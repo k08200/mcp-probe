@@ -5,13 +5,17 @@
         "query": "newer_than:7d"
       },
       "expect": {
-        "not_error_code": [401, 403]
+        "status": "pass",
+        "not_error_code": [401, 403],
+        "notContains": ["refresh_token", "client_secret"]
       }
     },
     "get_profile": {
       "input": {},
       "expect": {
-        "not_error_code": [401, 403]
+        "status": "pass",
+        "not_error_code": [401, 403],
+        "requiredFields": ["emailAddress"]
       }
     }
   }

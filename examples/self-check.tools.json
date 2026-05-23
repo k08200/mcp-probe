@@ -12,6 +12,26 @@
       "expect": {
         "not_error_code": [401]
       }
+    },
+    "db_query": {
+      "input": {
+        "sql": "select 1 as ok"
+      },
+      "expect": {
+        "status": "pass",
+        "requiredFields": ["rowCount", "limit", "source", "freshness"],
+        "maxRows": 100
+      }
+    },
+    "db_write": {
+      "input": {
+        "sql": "delete from users where id = 1"
+      },
+      "expect": {
+        "status": "fail",
+        "errorCode": "WRITE_NOT_ALLOWED",
+        "notContains": ["DATABASE_URL", "password", "stack"]
+      }
     }
   }
 }

@@ -18,13 +18,29 @@ describe('probeMcpServer stdio integration', () => {
             input: { query: 'errors' },
             expect: { not_error_code: [401] },
           },
+          db_query: {
+            input: { sql: 'select 1 as ok' },
+            expect: {
+              status: 'pass',
+              requiredFields: ['rowCount', 'limit', 'source', 'freshness'],
+              maxRows: 100,
+            },
+          },
+          db_write: {
+            input: { sql: 'delete from users where id = 1' },
+            expect: {
+              status: 'fail',
+              errorCode: 'WRITE_NOT_ALLOWED',
+              notContains: ['DATABASE_URL', 'password', 'stack'],
+            },
+          },
         },
       },
     });
 
     expect(result.serverInfo).toEqual({ name: 'fixture-server', version: '1.0.0', capabilities: ['tools'] });
-    expect(result.tools.map((tool) => tool.name).sort()).toEqual(['auth_check', 'echo']);
-    expect(result.toolCallResults).toHaveLength(2);
+    expect(result.tools.map((tool) => tool.name).sort()).toEqual(['auth_check', 'db_query', 'db_write', 'echo']);
+    expect(result.toolCallResults).toHaveLength(4);
 
     const echo = result.toolCallResults?.find((tool) => tool.tool === 'echo');
     expect(echo).toMatchObject({ status: 'pass', source: 'sidecar' });
@@ -35,6 +51,14 @@ describe('probeMcpServer stdio integration', () => {
       source: 'sidecar',
       error: '401 Unauthorized: browser auth required',
     });
+
+    const dbQuery = result.toolCallResults?.find((tool) => tool.tool === 'db_query');
+    expect(dbQuery).toMatchObject({ status: 'pass', source: 'sidecar' });
+    expect(dbQuery?.assertions?.every((assertion) => assertion.status === 'pass')).toBe(true);
+
+    const dbWrite = result.toolCallResults?.find((tool) => tool.tool === 'db_write');
+    expect(dbWrite).toMatchObject({ status: 'pass', source: 'sidecar' });
+    expect(dbWrite?.assertions?.every((assertion) => assertion.status === 'pass')).toBe(true);
   }, 10000);
 
   it('does not report allowed stderr warnings as the startup failure reason', async () => {

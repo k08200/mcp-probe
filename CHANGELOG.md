@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0
+
+### Added
+
+- Sidecar contract assertions for production MCP checks.
+- `expect.status` for positive and negative probes, including expected write denials.
+- `expect.requiredFields` for validating result metadata such as `rowCount`, `limit`, `source`, and `freshness`.
+- `expect.maxRows` for row-limit checks on database-backed tools.
+- `expect.errorCode` for stable structured error-code checks.
+- `expect.contains` and `expect.notContains` for output and leak checks.
+- Contract assertion results in terminal, JSON, and GitHub Actions summaries.
+
 ## 1.3.0
 
 ### Added

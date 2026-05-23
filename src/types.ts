@@ -6,6 +6,7 @@ export type IssueCode =
   | 'TOOL_CALL_AUTH'
   | 'TOOL_CALL_FAILED'
   | 'TOOL_CALL_TIMEOUT'
+  | 'CONTRACT_ASSERTION_FAILED'
   | 'AUTO_DRY_RUN_INPUT'
   | 'SIDECAR_MISSING'
   | 'SIDECAR_INVALID'
@@ -40,14 +41,31 @@ export type ToolCallResult = {
   latencyMs: number;
   error?: string;
   source: 'sidecar' | 'auto';
+  assertions?: AssertionResult[];
   issue?: Issue;
+};
+
+export type ExpectedToolStatus = 'pass' | 'fail' | 'warn';
+
+export type AssertionResult = {
+  name: string;
+  status: CheckStatus;
+  message: string;
+};
+
+export type ToolExpectations = {
+  status?: ExpectedToolStatus;
+  not_error_code?: number[];
+  requiredFields?: string[];
+  maxRows?: number;
+  errorCode?: string;
+  contains?: string[];
+  notContains?: string[];
 };
 
 export type ToolSidecarEntry = {
   input: Record<string, unknown>;
-  expect?: {
-    not_error_code?: number[];
-  };
+  expect?: ToolExpectations;
 };
 
 export type ToolSidecar = {

@@ -52,7 +52,7 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.3.0');
+  .version('1.4.0');
 
 program
   .command('init')

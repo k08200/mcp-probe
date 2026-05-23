@@ -64,7 +64,10 @@ For production CI, add sidecar inputs so dry-runs call real read-only paths inst
         "timeframe": "1h"
       },
       "expect": {
-        "not_error_code": [401, 403]
+        "status": "pass",
+        "not_error_code": [401, 403],
+        "requiredFields": ["source", "freshness"],
+        "maxRows": 100
       }
     }
   }
@@ -221,6 +224,7 @@ Common issue codes:
 | `NO_TOOLS` | The server responded but did not expose tools. |
 | `TOOL_SCHEMA_INVALID` | A discovered tool has an invalid schema. |
 | `TOOL_CALL_AUTH` | A real tool call reached auth or permission handling. |
+| `CONTRACT_ASSERTION_FAILED` | A tool call completed but failed one or more sidecar assertions. |
 | `AUTO_DRY_RUN_INPUT` | Auto-generated schema-minimum input failed; add sidecar inputs. |
 | `TOOL_CALL_FAILED` | A sidecar tool call returned a non-auth error. |
 
@@ -365,6 +369,55 @@ mcp-probe @your-org/datadog-mcp --tools-file ./ci/mcp-tools.json
 ```
 
 Sidecar inputs are used first; generated minimal inputs are fallback only. Auth and permission failures such as 401/403 are surfaced as warnings so CI can distinguish "OAuth handoff needed" from transport or runtime failure.
+
+## Tool call contract assertions
+
+For production MCP servers, especially database-backed servers, a successful `tools/call` is still not enough. Agents depend on a contract: read-only roles, scoped data, stable error codes, safe limits, and no leaked internals.
+
+Add assertions to `.mcp-probe.json` to validate that contract:
+
+```json
+{
+  "tools": {
+    "execute_sql": {
+      "input": {
+        "project_id": "YOUR_PROJECT_ID",
+        "query": "select 1 as health_check"
+      },
+      "expect": {
+        "status": "pass",
+        "requiredFields": ["rowCount", "limit", "source", "freshness"],
+        "maxRows": 100
+      }
+    },
+    "execute_sql_write_denied": {
+      "input": {
+        "project_id": "YOUR_PROJECT_ID",
+        "query": "delete from users where id = 1"
+      },
+      "expect": {
+        "status": "fail",
+        "errorCode": "WRITE_NOT_ALLOWED",
+        "notContains": ["DATABASE_URL", "password", "stack"]
+      }
+    }
+  }
+}
+```
+
+Supported assertions:
+
+| Assertion | Purpose |
+|-----------|---------|
+| `status` | Expected call status: `pass`, `fail`, or `warn`. Use `fail` for denied-write probes. |
+| `requiredFields` | Field names that must appear anywhere in the tool result payload. |
+| `maxRows` | Maximum allowed row count, using `rowCount`, `rowsReturned`, or common row arrays. |
+| `errorCode` | Stable error code expected in an error response. |
+| `contains` | Text snippets that must appear in the result or error payload. |
+| `notContains` | Text snippets that must not appear; useful for stack traces, secrets, and raw internals. |
+| `not_error_code` | HTTP/status codes that should be warnings instead of failures, usually auth handoff codes. |
+
+If an assertion fails, mcp-probe returns `CONTRACT_ASSERTION_FAILED` and includes per-assertion details in JSON and GitHub Actions summaries.
 
 ## Status badges
 

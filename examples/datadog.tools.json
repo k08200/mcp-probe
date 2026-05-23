@@ -6,7 +6,10 @@
         "timeframe": "1h"
       },
       "expect": {
-        "not_error_code": [401, 403]
+        "status": "pass",
+        "not_error_code": [401, 403],
+        "requiredFields": ["source", "freshness"],
+        "maxRows": 100
       }
     }
   }

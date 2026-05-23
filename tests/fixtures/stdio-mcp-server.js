@@ -27,4 +27,42 @@ server.registerTool(
   })
 );
 
+server.registerTool(
+  'db_query',
+  {
+    description: 'Simulates a read-only database query result',
+    inputSchema: { sql: z.string() },
+  },
+  async () => ({
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        rowCount: 1,
+        limit: 100,
+        source: 'fixture-db',
+        freshness: '2026-05-24T00:00:00.000Z',
+        rows: [{ ok: 1 }],
+      }),
+    }],
+  })
+);
+
+server.registerTool(
+  'db_write',
+  {
+    description: 'Simulates a denied database write',
+    inputSchema: { sql: z.string() },
+  },
+  async () => ({
+    isError: true,
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        code: 'WRITE_NOT_ALLOWED',
+        message: 'Write operations are blocked for this role',
+      }),
+    }],
+  })
+);
+
 await server.connect(new StdioServerTransport());

@@ -3,7 +3,9 @@
     "list_projects": {
       "input": {},
       "expect": {
-        "not_error_code": [401, 403]
+        "status": "pass",
+        "not_error_code": [401, 403],
+        "requiredFields": ["project_id"]
       }
     },
     "execute_sql": {
@@ -12,7 +14,21 @@
         "query": "select 1 as health_check"
       },
       "expect": {
-        "not_error_code": [401, 403]
+        "status": "pass",
+        "not_error_code": [401, 403],
+        "requiredFields": ["rowCount", "limit", "source", "freshness"],
+        "maxRows": 100
+      }
+    },
+    "execute_sql_write_denied": {
+      "input": {
+        "project_id": "YOUR_PROJECT_ID",
+        "query": "delete from users where id = 1"
+      },
+      "expect": {
+        "status": "fail",
+        "errorCode": "WRITE_NOT_ALLOWED",
+        "notContains": ["DATABASE_URL", "password", "stack"]
       }
     }
   }

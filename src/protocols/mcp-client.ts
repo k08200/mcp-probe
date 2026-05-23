@@ -3,11 +3,12 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { assertionFailureMessage, evaluateToolAssertions } from '../assertions.js';
 import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
-import type { ProbeOptions, ProbeResult, StderrRules, ToolCallResult } from '../types.js';
+import type { CheckStatus, ProbeOptions, ProbeResult, StderrRules, ToolCallResult, ToolExpectations } from '../types.js';
 
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
@@ -101,6 +102,39 @@ function toolResultErrorMessage(result: unknown): string | undefined {
     .filter((part): part is string => Boolean(part));
 
   return textParts.join('\n') || 'Tool returned an error result';
+}
+
+function finalToolResult(
+  tool: string,
+  actualStatus: CheckStatus,
+  latencyMs: number,
+  source: ToolCallResult['source'],
+  expect: ToolExpectations | undefined,
+  result?: unknown,
+  error?: string
+): ToolCallResult {
+  const assertions = evaluateToolAssertions({ result, error, actualStatus, expect });
+  const assertionError = assertionFailureMessage(assertions);
+  const expectedStatusMatched = expect?.status !== undefined && actualStatus === expect.status;
+  const finalStatus: CheckStatus = assertionError
+    ? 'fail'
+    : expectedStatusMatched
+      ? 'pass'
+      : actualStatus;
+  const finalError = assertionError
+    ? `Contract assertion failed: ${assertionError}${error ? `; original error: ${error}` : ''}`
+    : finalStatus === 'pass'
+      ? undefined
+      : error;
+  const payload: ToolCallResult = {
+    tool,
+    status: finalStatus,
+    latencyMs,
+    source,
+  };
+  if (finalError) payload.error = finalError;
+  if (assertions.length > 0) payload.assertions = assertions;
+  return withIssue(payload);
 }
 
 function makeRequestInit(headers?: Record<string, string>): RequestInit | undefined {
@@ -204,6 +238,7 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
         const input = sidecarEntry?.input ?? generateMinimalInput(tool.inputSchema);
         const source: ToolCallResult['source'] = sidecarEntry ? 'sidecar' : 'auto';
         const notErrorCodes = sidecarEntry?.expect?.not_error_code;
+        const expectations = sidecarEntry?.expect;
 
         const start = Date.now();
         try {
@@ -216,26 +251,14 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
           if (toolError) {
             const error = redactText(toolError, secretValues);
             const status = isAuthError(error, notErrorCodes) ? 'warn' : 'fail';
-            toolCallResults.push(withIssue({
-              tool: tool.name,
-              status,
-              latencyMs: Date.now() - start,
-              error,
-              source,
-            }));
+            toolCallResults.push(finalToolResult(tool.name, status, Date.now() - start, source, expectations, result, error));
             continue;
           }
-          toolCallResults.push({ tool: tool.name, status: 'pass', latencyMs: Date.now() - start, source });
+          toolCallResults.push(finalToolResult(tool.name, 'pass', Date.now() - start, source, expectations, result));
         } catch (err) {
           const msg = redactText(err instanceof Error ? err.message : String(err), secretValues);
           const status = isAuthError(msg, notErrorCodes) ? 'warn' : 'fail';
-          toolCallResults.push(withIssue({
-            tool: tool.name,
-            status,
-            latencyMs: Date.now() - start,
-            error: msg,
-            source,
-          }));
+          toolCallResults.push(finalToolResult(tool.name, status, Date.now() - start, source, expectations, undefined, msg));
         }
       }
     }

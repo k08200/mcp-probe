@@ -85,6 +85,9 @@ describe('github reporter', () => {
             code: 'TOOL_CALL_AUTH',
             hint: 'Check OAuth/browser handoff and CI secrets.',
           },
+          assertions: [
+            { name: 'errorCode', status: 'pass', message: 'Found expected error code WRITE_NOT_ALLOWED' },
+          ],
         },
       ],
     });
@@ -93,6 +96,7 @@ describe('github reporter', () => {
     const annotations = buildGithubAnnotations(report);
 
     expect(summary).toContain('TOOL_CALL_AUTH: Check OAuth/browser handoff and CI secrets.');
+    expect(summary).toContain('PASS errorCode: Found expected error code WRITE_NOT_ALLOWED');
     expect(annotations[0]).toContain('TOOL_CALL_AUTH');
     expect(annotations[0]).toContain('Check OAuth/browser handoff and CI secrets.');
     expect(annotations[1]).toContain('TOOL_CALL_AUTH');

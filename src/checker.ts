@@ -53,13 +53,40 @@ function loadSidecar(toolsFile?: string): ToolSidecar | undefined {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
       throw new Error(`Invalid tools file: ${toolName} entry must be an object`);
     }
-    const toolEntry = entry as { input?: unknown; expect?: { not_error_code?: unknown } };
+    const toolEntry = entry as {
+      input?: unknown;
+      expect?: {
+        status?: unknown;
+        not_error_code?: unknown;
+        requiredFields?: unknown;
+        maxRows?: unknown;
+        errorCode?: unknown;
+        contains?: unknown;
+        notContains?: unknown;
+      };
+    };
     if (!toolEntry.input || typeof toolEntry.input !== 'object' || Array.isArray(toolEntry.input)) {
       throw new Error(`Invalid tools file: ${toolName}.input must be an object`);
     }
     const codes = toolEntry.expect?.not_error_code;
     if (codes !== undefined && (!Array.isArray(codes) || !codes.every((c) => typeof c === 'number'))) {
       throw new Error(`Invalid tools file: ${toolName}.expect.not_error_code must be a number array`);
+    }
+    const status = toolEntry.expect?.status;
+    if (status !== undefined && status !== 'pass' && status !== 'fail' && status !== 'warn') {
+      throw new Error(`Invalid tools file: ${toolName}.expect.status must be pass, fail, or warn`);
+    }
+    for (const key of ['requiredFields', 'contains', 'notContains'] as const) {
+      const value = toolEntry.expect?.[key];
+      if (value !== undefined && (!Array.isArray(value) || !value.every((item) => typeof item === 'string'))) {
+        throw new Error(`Invalid tools file: ${toolName}.expect.${key} must be a string array`);
+      }
+    }
+    if (toolEntry.expect?.maxRows !== undefined && (typeof toolEntry.expect.maxRows !== 'number' || toolEntry.expect.maxRows < 0)) {
+      throw new Error(`Invalid tools file: ${toolName}.expect.maxRows must be a non-negative number`);
+    }
+    if (toolEntry.expect?.errorCode !== undefined && typeof toolEntry.expect.errorCode !== 'string') {
+      throw new Error(`Invalid tools file: ${toolName}.expect.errorCode must be a string`);
     }
   }
 
@@ -154,11 +181,13 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
       const warned = probe.toolCallResults.filter((r) => r.status === 'warn');
       const passed = probe.toolCallResults.filter((r) => r.status === 'pass');
       const sidecarCount = probe.toolCallResults.filter((r) => r.source === 'sidecar').length;
+      const contractFailed = failed.filter((r) => r.issue?.code === 'CONTRACT_ASSERTION_FAILED').length;
       const status: CheckStatus = failed.length > 0 ? 'fail' : warned.length > 0 ? 'warn' : 'pass';
       const parts: string[] = [];
       if (passed.length > 0) parts.push(`${passed.length} passed`);
       if (warned.length > 0) parts.push(`${warned.length} auth/permission errors`);
-      if (failed.length > 0) parts.push(`${failed.length} failed`);
+      if (contractFailed > 0) parts.push(`${contractFailed} contract assertion failed`);
+      if (failed.length - contractFailed > 0) parts.push(`${failed.length - contractFailed} failed`);
       const sourceNote = sidecarCount > 0 ? ` (${sidecarCount} sidecar, ${probe.toolCallResults.length - sidecarCount} auto)` : '';
       checks.push(withIssue({
         name: 'Tool call dry-run',

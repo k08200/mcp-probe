@@ -1,9 +1,19 @@
-# mcp-probe v1.3.0
+# mcp-probe v1.4.0
 
-This release focuses on making failures actionable. mcp-probe now explains not just what failed, but why it likely failed and what to try next.
+This release adds contract probes for production MCP servers. mcp-probe can now validate not just whether a tool can be called, but whether the result preserves the contract an agent depends on.
 
 ## Highlights
 
+- Added sidecar contract assertions:
+  - `expect.status`
+  - `expect.requiredFields`
+  - `expect.maxRows`
+  - `expect.errorCode`
+  - `expect.contains`
+  - `expect.notContains`
+- Added negative probes for expected denied writes and stable error codes.
+- Added leak checks for raw internals such as `DATABASE_URL`, `password`, and stack traces.
+- Added DB-oriented recipe updates for read-only query metadata and write-denial checks.
 - Added stable `issue.code` and `issue.hint` metadata for warning and failed checks.
 - Added remediation hints to terminal output, JSON output, GitHub Actions summaries, and workflow annotations.
 - Classifies tool-call dry-run failures into auth handoff, timeout, auto-input, and sidecar-input problems.
@@ -35,7 +45,7 @@ npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary
 ## Validation
 
 - `npm run typecheck`
-- `npm test` (59 tests)
+- `npm test`
 - `npm run build`
 - `npm audit` (0 vulnerabilities)
 - GitHub Actions CI passing on Node.js 20, 22, and 24

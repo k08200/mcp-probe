@@ -247,6 +247,33 @@ describe('checkMcpServer', () => {
     expect(check?.issue?.code).toBe('TOOL_CALL_AUTH');
   });
 
+  it('summarizes contract assertion failures separately', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        toolCallResults: [
+          {
+            tool: 'query',
+            status: 'fail',
+            latencyMs: 20,
+            source: 'sidecar',
+            error: 'Contract assertion failed: Missing required field "rowCount"',
+            issue: {
+              code: 'CONTRACT_ASSERTION_FAILED',
+              hint: 'Contract failed',
+            },
+          },
+        ],
+      })
+    );
+
+    const report = await checkMcpServer({ target: '@test/server', timeoutMs: 5000, probeTools: true });
+
+    const check = report.checks.find((c) => c.name === 'Tool call dry-run');
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('1 contract assertion failed');
+    expect(check?.issue?.code).toBe('CONTRACT_ASSERTION_FAILED');
+  });
+
   it('does not add dry-run check when probeTools is false', async () => {
     mockedProbe.mockResolvedValue(makeProbeResult());
 
