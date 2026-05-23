@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- CI self-check fixture that intentionally fails contract assertions and verifies `CONTRACT_ASSERTION_FAILED` is emitted.
+- Contract failure sidecar example covering missing metadata, row-limit violation, and denied-write success.
+
 ## 1.4.0
 
 ### Added

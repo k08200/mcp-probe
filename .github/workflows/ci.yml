@@ -40,3 +40,6 @@ jobs:
       - name: Self-check batch mode
         run: node dist/cli.js --config examples/self-check.config.json --github-summary --badge-file mcp-probe-badge.json
         timeout-minutes: 2
+      - name: Self-check contract assertion failure
+        run: node scripts/verify-contract-failure.mjs
+        timeout-minutes: 2

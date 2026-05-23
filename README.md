@@ -521,6 +521,8 @@ Copy-ready examples live in [`examples/github-actions`](examples/github-actions)
 
 mcp-probe also dogfoods itself in CI with [`examples/self-check.config.json`](examples/self-check.config.json), which validates batch mode, sidecar inputs, GitHub summaries, and badge output against a local fixture MCP server.
 
+It also includes [`examples/contract-failure.tools.json`](examples/contract-failure.tools.json), an intentionally broken sidecar used by CI to prove contract failures surface as `CONTRACT_ASSERTION_FAILED`. That fixture checks the negative path: missing metadata, row-limit violations, and denied writes that must fail safely.
+
 ## Recipes
 
 Production MCP checks work best with sidecar inputs that exercise real call paths instead of generated empty values. Copy-ready starting points live in [`examples/recipes`](examples/recipes):
