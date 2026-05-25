@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate MCP server
         run: |
@@ -130,6 +130,12 @@ mcp-probe init --target @modelcontextprotocol/server-memory --github-actions
 
 # Discover tool names first and scaffold sidecar entries automatically
 mcp-probe init --target @modelcontextprotocol/server-memory --discover --github-actions
+
+# Check whether this project is ready to run mcp-probe in CI
+mcp-probe doctor
+
+# JSON output for scripting or internal CI preflight checks
+mcp-probe doctor --config-file mcp-probe.config.json --output json
 
 # Scaffold a remote server config with auth from an env var
 mcp-probe init \
@@ -306,6 +312,29 @@ Config fields:
 | `servers[].probeTools` | Enables dry-run tool calls for that server. |
 | `servers[].toolsFile` | Sidecar input file for meaningful `tools/call` samples. Relative paths resolve from the config file directory. |
 
+## Project doctor
+
+Use `mcp-probe doctor` before wiring mcp-probe into CI or after changing config files:
+
+```bash
+mcp-probe doctor
+```
+
+It checks:
+
+| Check | Description |
+|-------|-------------|
+| **Node.js version** | Confirms the current runtime satisfies mcp-probe's required Node.js version. |
+| **Config file** | Validates that `mcp-probe.config.json` exists and can be parsed. |
+| **Sidecar files** | Validates each configured `toolsFile`, resolving relative paths from the config file directory. |
+| **GitHub Actions workflow** | Warns when no workflow file mentions `mcp-probe`. |
+
+For automation, use JSON output:
+
+```bash
+mcp-probe doctor --config-file ci/mcp-probe.config.json --output json
+```
+
 ## Stderr classification
 
 Many MCP servers write harmless warnings to stderr during startup: optional config notices, update checks, deprecation warnings, and similar noise. If the server later fails to initialize, raw stderr can make those warnings look like the root cause.
@@ -470,7 +499,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate MCP server
         run: |
@@ -499,7 +528,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate MCP fleet
         run: |

@@ -8,6 +8,7 @@ import { renderJson } from './reporters/json-reporter.js';
 import { renderGithubActions } from './reporters/github.js';
 import { writeBadgeFile } from './reporters/badge.js';
 import { initProject } from './init.js';
+import { runDoctor } from './doctor.js';
 import type { TransportMode } from './types.js';
 
 const program = new Command();
@@ -49,10 +50,24 @@ function parseTransport(value: string | undefined): TransportMode | undefined {
   throw new Error('Transport must be "stdio", "http", or "sse".');
 }
 
+function argValue(long: string, short?: string): string | undefined {
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === long || (short && arg === short)) {
+      return args[i + 1];
+    }
+    if (arg.startsWith(`${long}=`)) {
+      return arg.slice(long.length + 1);
+    }
+  }
+  return undefined;
+}
+
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.4.1');
+  .version('1.5.0');
 
 program
   .command('init')
@@ -119,6 +134,38 @@ program
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
+  });
+
+program
+  .command('doctor')
+  .description('check whether the current project is ready to use mcp-probe in CI')
+  .option('--config-file <path>', 'config file to inspect', 'mcp-probe.config.json')
+  .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
+  .action((opts: { configFile?: string; output?: string }) => {
+    const configFile = opts.configFile ?? 'mcp-probe.config.json';
+    const output = argValue('--output', '-o') ?? opts.output ?? 'terminal';
+    if (!['terminal', 'json'].includes(output)) {
+      console.error('Output format must be "terminal" or "json".');
+      process.exit(1);
+    }
+
+    const report = runDoctor({ configFile });
+    if (output === 'json') {
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    } else {
+      console.log('');
+      console.log('mcp-probe doctor');
+      console.log('────────────────────────────────────────────────────');
+      for (const check of report.checks) {
+        const icon = check.status === 'pass' ? '✓' : check.status === 'warn' ? '⚠' : '✗';
+        console.log(`  ${icon}  ${check.name}`);
+        console.log(`     ${check.message}`);
+      }
+      console.log('────────────────────────────────────────────────────');
+      console.log(`  ${report.overallStatus.toUpperCase()}`);
+      console.log('');
+    }
+    process.exit(report.overallStatus === 'fail' ? 1 : 0);
   });
 
 program

@@ -120,7 +120,9 @@ describe('initProject', () => {
       });
 
       expect(existsSync(workflowFile)).toBe(true);
-      expect(readFileSync(workflowFile, 'utf8')).toContain(`--config ${configFile}`);
+      const workflow = readFileSync(workflowFile, 'utf8');
+      expect(workflow).toContain('actions/checkout@v6');
+      expect(workflow).toContain(`--config ${configFile}`);
 
       const config = JSON.parse(readFileSync(configFile, 'utf8'));
       expect(config.servers[0]).toEqual({

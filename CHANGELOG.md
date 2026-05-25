@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0
+
+### Added
+
+- `mcp-probe doctor` project preflight command for CI readiness checks.
+- Doctor checks for Node.js version, config file validity, sidecar JSON shape, and GitHub Actions workflow presence.
+- `mcp-probe doctor --output json` for scripted preflight usage.
+
 ## 1.4.1
 
 ### Added
