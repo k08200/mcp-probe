@@ -327,7 +327,7 @@ It checks:
 | **Node.js version** | Confirms the current runtime satisfies mcp-probe's required Node.js version. |
 | **Config file** | Validates that `mcp-probe.config.json` exists and can be parsed. |
 | **Sidecar files** | Validates each configured `toolsFile`, resolving relative paths from the config file directory. |
-| **GitHub Actions workflow** | Warns when no workflow file mentions `mcp-probe`. |
+| **GitHub Actions workflow** | Warns when no workflow mentions `mcp-probe`, or when workflows miss `actions/checkout@v6`, `--config <file>`, or `--github-summary`. |
 
 For automation, use JSON output:
 

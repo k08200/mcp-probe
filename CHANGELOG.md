@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0
+
+### Changed
+
+- `mcp-probe doctor` now validates GitHub Actions workflow quality instead of only checking whether a workflow mentions `mcp-probe`.
+- Doctor now warns when workflows miss `actions/checkout@v6`, `--config <config-file>`, or `--github-summary`.
+
 ## 1.5.0
 
 ### Added

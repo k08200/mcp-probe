@@ -85,7 +85,7 @@ function validateSidecar(path: string): DoctorCheck {
   }
 }
 
-function workflowStatus(): DoctorCheck {
+function workflowStatus(configFile: string): DoctorCheck {
   const dir = '.github/workflows';
   if (!existsSync(dir)) {
     return {
@@ -98,9 +98,33 @@ function workflowStatus(): DoctorCheck {
   const workflowFiles = readdirSync(dir)
     .filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'))
     .map((file) => join(dir, file));
-  const matching = workflowFiles.filter((file) => readFileSync(file, 'utf8').includes('mcp-probe'));
+  const matching = workflowFiles
+    .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
+    .filter(({ content }) => content.includes('mcp-probe'));
 
-  return matching.length > 0
+  if (matching.length === 0) {
+    return {
+      name: 'GitHub Actions workflow',
+      status: 'warn',
+      message: 'No workflow file mentions mcp-probe',
+    };
+  }
+
+  const combined = matching.map(({ content }) => content).join('\n');
+  const missing: string[] = [];
+  const normalizedConfigFile = configFile.replaceAll('\\', '/');
+
+  if (!combined.includes('actions/checkout@v6')) {
+    missing.push('actions/checkout@v6');
+  }
+  if (!/--config(?:=|\s+)/.test(combined) || !combined.replaceAll('\\', '/').includes(normalizedConfigFile)) {
+    missing.push(`--config ${configFile}`);
+  }
+  if (!combined.includes('--github-summary')) {
+    missing.push('--github-summary');
+  }
+
+  return missing.length === 0
     ? {
         name: 'GitHub Actions workflow',
         status: 'pass',
@@ -109,7 +133,7 @@ function workflowStatus(): DoctorCheck {
     : {
         name: 'GitHub Actions workflow',
         status: 'warn',
-        message: 'No workflow file mentions mcp-probe',
+        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} mentioning mcp-probe, but missing ${missing.join(', ')}`,
       };
 }
 
@@ -131,7 +155,7 @@ export function runDoctor(options: DoctorOptions): DoctorReport {
       status: 'warn',
       message: `${options.configFile} not found. Run "mcp-probe init --target <server> --github-actions".`,
     });
-    checks.push(workflowStatus());
+    checks.push(workflowStatus(options.configFile));
     return { overallStatus: deriveOverallStatus(checks), checks };
   }
 
@@ -163,6 +187,6 @@ export function runDoctor(options: DoctorOptions): DoctorReport {
     });
   }
 
-  checks.push(workflowStatus());
+  checks.push(workflowStatus(options.configFile));
   return { overallStatus: deriveOverallStatus(checks), checks };
 }
