@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.4.1
 
 ### Added
 
 - CI self-check fixture that intentionally fails contract assertions and verifies `CONTRACT_ASSERTION_FAILED` is emitted.
 - Contract failure sidecar example covering missing metadata, row-limit violation, and denied-write success.
+
+### Changed
+
+- Upgraded GitHub Actions workflows to `actions/checkout@v6` and `actions/setup-node@v6` to avoid Node 20 action-runtime deprecation noise.
 
 ## 1.4.0
 
