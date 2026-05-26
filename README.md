@@ -87,6 +87,8 @@ Use `mcp-probe.config.json` when a repository depends on one or more MCP servers
 }
 ```
 
+Relative local `target` and `toolsFile` paths are resolved from the config file directory.
+
 Run:
 
 ```bash

@@ -1,7 +1,7 @@
 import { checkMcpServer } from '../dist/checker.js';
 
 const report = await checkMcpServer({
-  target: './tests/fixtures/stdio-mcp-server.js',
+  target: './examples/fixtures/stdio-mcp-server.js',
   timeoutMs: 10000,
   toolsFile: './examples/contract-failure.tools.json',
 });

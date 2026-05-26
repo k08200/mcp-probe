@@ -3,7 +3,7 @@
   "servers": [
     {
       "name": "fixture-stdio",
-      "target": "./tests/fixtures/stdio-mcp-server.js",
+      "target": "./fixtures/stdio-mcp-server.js",
       "toolsFile": "./self-check.tools.json",
       "stderr": {
         "allow": ["^Warning:", "missing optional config"],

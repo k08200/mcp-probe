@@ -121,6 +121,15 @@ function resolveConfigPath(configFile: string, maybeRelative: string | undefined
   return resolve(dirname(configFile), maybeRelative);
 }
 
+function isUrlTarget(target: string): boolean {
+  return /^https?:\/\//i.test(target);
+}
+
+function resolveConfigTarget(configFile: string, target: string): string {
+  if (isUrlTarget(target) || isAbsolute(target) || !target.startsWith('.')) return target;
+  return resolve(dirname(configFile), target);
+}
+
 function expandEnvVars(value: string): string {
   return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/gi, (match, name: string) => {
     const envValue = process.env[name];
@@ -145,7 +154,7 @@ export async function checkConfigFile(configFile: string, defaultTimeoutMs = 100
 
   for (const server of config.servers) {
     const options: CheckOptions = {
-      target: server.target,
+      target: resolveConfigTarget(configFile, server.target),
       serverArgs: server.serverArgs,
       timeoutMs: server.timeoutMs ?? config.timeoutMs ?? defaultTimeoutMs,
       transport: server.transport,

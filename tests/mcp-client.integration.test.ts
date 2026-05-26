@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { probeMcpServer } from '../src/protocols/mcp-client.js';
 
-const fixtureServer = new URL('./fixtures/stdio-mcp-server.js', import.meta.url).pathname;
+const fixtureServer = new URL('../examples/fixtures/stdio-mcp-server.js', import.meta.url).pathname;
 const noToolsServer = new URL('./fixtures/no-tools-mcp-server.js', import.meta.url).pathname;
 const stderrWarningServer = new URL('./fixtures/stderr-warning-server.js', import.meta.url).pathname;
 

@@ -89,13 +89,13 @@ describe('checkConfigFile', () => {
     vi.clearAllMocks();
   });
 
-  it('runs every configured server and resolves toolsFile relative to the config file', async () => {
+  it('runs every configured server and resolves local paths relative to the config file', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
     const file = join(dir, 'mcp-probe.config.json');
     writeFileSync(file, JSON.stringify({
       timeoutMs: 8000,
       servers: [
-        { name: 'memory', target: '@modelcontextprotocol/server-memory', probeTools: true },
+        { name: 'local', target: './fixtures/server.js', probeTools: true },
         {
           name: 'datadog',
           target: 'https://mcp.example.com/mcp',
@@ -107,16 +107,16 @@ describe('checkConfigFile', () => {
       ],
     }));
     mockedCheck
-      .mockResolvedValueOnce(makeReport('@modelcontextprotocol/server-memory', 'pass'))
+      .mockResolvedValueOnce(makeReport(join(dir, 'fixtures/server.js'), 'pass'))
       .mockResolvedValueOnce(makeReport('https://mcp.example.com/mcp', 'warn'));
 
     try {
       const report = await checkConfigFile(file, 5000);
 
       expect(report.overallStatus).toBe('warn');
-      expect(report.servers.map((server) => server.name)).toEqual(['memory', 'datadog']);
+      expect(report.servers.map((server) => server.name)).toEqual(['local', 'datadog']);
       expect(mockedCheck).toHaveBeenNthCalledWith(1, {
-        target: '@modelcontextprotocol/server-memory',
+        target: join(dir, 'fixtures/server.js'),
         serverArgs: undefined,
         timeoutMs: 8000,
         transport: undefined,
