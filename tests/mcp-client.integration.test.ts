@@ -61,6 +61,51 @@ describe('probeMcpServer stdio integration', () => {
     expect(dbWrite?.assertions?.every((assertion) => assertion.status === 'pass')).toBe(true);
   }, 10000);
 
+  it('calls only sidecar-listed tools when sidecar inputs are provided', async () => {
+    const result = await probeMcpServer({
+      command: process.execPath,
+      args: [fixtureServer],
+      timeoutMs: 5000,
+      probeTools: true,
+      sidecar: {
+        tools: {
+          echo: { input: { message: 'safe read-only sample' } },
+        },
+      },
+    });
+
+    expect(result.toolCallResults).toEqual([
+      expect.objectContaining({
+        tool: 'echo',
+        status: 'pass',
+        source: 'sidecar',
+      }),
+    ]);
+  }, 10000);
+
+  it('fails when a sidecar references a tool the server does not expose', async () => {
+    const result = await probeMcpServer({
+      command: process.execPath,
+      args: [fixtureServer],
+      timeoutMs: 5000,
+      probeTools: true,
+      sidecar: {
+        tools: {
+          missing_tool: { input: {} },
+        },
+      },
+    });
+
+    expect(result.toolCallResults).toEqual([
+      expect.objectContaining({
+        tool: 'missing_tool',
+        status: 'fail',
+        source: 'sidecar',
+        error: 'Sidecar references a tool that was not discovered: missing_tool',
+      }),
+    ]);
+  }, 10000);
+
   it('does not report allowed stderr warnings as the startup failure reason', async () => {
     await expect(probeMcpServer({
       transport: 'stdio',

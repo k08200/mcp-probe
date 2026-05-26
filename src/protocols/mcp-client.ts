@@ -231,34 +231,49 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
     let toolCallResults: ToolCallResult[] | undefined;
     if (options.probeTools && toolsResult.tools.length > 0) {
       toolCallResults = [];
-      for (const tool of toolsResult.tools) {
-        const sidecarEntry = options.sidecar?.tools[tool.name];
+      const toolsByName = new Map(toolsResult.tools.map((tool) => [tool.name, tool]));
+      const toolsToCall = options.sidecar
+        ? Object.entries(options.sidecar.tools).map(([name, entry]) => ({ name, entry, tool: toolsByName.get(name) }))
+        : toolsResult.tools.map((tool) => ({ name: tool.name, entry: undefined, tool }));
 
-        // Sidecar input beats auto-generated because it can reach the real call path.
-        const input = sidecarEntry?.input ?? generateMinimalInput(tool.inputSchema);
-        const source: ToolCallResult['source'] = sidecarEntry ? 'sidecar' : 'auto';
-        const notErrorCodes = sidecarEntry?.expect?.not_error_code;
-        const expectations = sidecarEntry?.expect;
+      for (const candidate of toolsToCall) {
+        if (!candidate.tool) {
+          toolCallResults.push(withIssue({
+            tool: candidate.name,
+            status: 'fail',
+            latencyMs: 0,
+            source: 'sidecar',
+            error: `Sidecar references a tool that was not discovered: ${candidate.name}`,
+          }));
+          continue;
+        }
+
+        // With a sidecar, only explicitly declared tools are called.
+        // Without a sidecar, fall back to schema-minimum inputs for broad smoke coverage.
+        const input = candidate.entry?.input ?? generateMinimalInput(candidate.tool.inputSchema);
+        const source: ToolCallResult['source'] = candidate.entry ? 'sidecar' : 'auto';
+        const notErrorCodes = candidate.entry?.expect?.not_error_code;
+        const expectations = candidate.entry?.expect;
 
         const start = Date.now();
         try {
           const result = await withTimeout(
-            client.callTool({ name: tool.name, arguments: input }),
+            client.callTool({ name: candidate.tool.name, arguments: input }),
             options.timeoutMs,
-            `callTool(${tool.name})`
+            `callTool(${candidate.tool.name})`
           );
           const toolError = toolResultErrorMessage(result);
           if (toolError) {
             const error = redactText(toolError, secretValues);
             const status = isAuthError(error, notErrorCodes) ? 'warn' : 'fail';
-            toolCallResults.push(finalToolResult(tool.name, status, Date.now() - start, source, expectations, result, error));
+            toolCallResults.push(finalToolResult(candidate.tool.name, status, Date.now() - start, source, expectations, result, error));
             continue;
           }
-          toolCallResults.push(finalToolResult(tool.name, 'pass', Date.now() - start, source, expectations, result));
+          toolCallResults.push(finalToolResult(candidate.tool.name, 'pass', Date.now() - start, source, expectations, result));
         } catch (err) {
           const msg = redactText(err instanceof Error ? err.message : String(err), secretValues);
           const status = isAuthError(msg, notErrorCodes) ? 'warn' : 'fail';
-          toolCallResults.push(finalToolResult(tool.name, status, Date.now() - start, source, expectations, undefined, msg));
+          toolCallResults.push(finalToolResult(candidate.tool.name, status, Date.now() - start, source, expectations, undefined, msg));
         }
       }
     }

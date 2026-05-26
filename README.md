@@ -97,6 +97,8 @@ mcp-probe --config mcp-probe.config.json --github-summary
 
 Auto-generated tool inputs mostly test schema validation. Production CI should use sidecar inputs that reach real read-only paths.
 
+When a sidecar is provided, mcp-probe calls only the tools listed in that file. Tools that are discovered but not listed are not called.
+
 ```json
 {
   "tools": {

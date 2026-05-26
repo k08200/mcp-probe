@@ -11,6 +11,7 @@
 
 ### Changed
 
+- When sidecar inputs are provided, tool dry-runs now call only sidecar-listed tools. Auto-generated calls remain fallback behavior for `--probe-tools` without a sidecar.
 - Shared config, sidecar, and workflow scaffolding between `init` and `doctor`.
 - Shared sidecar validation between runtime checks and `doctor`.
 - Reduced README scope to the core CI readiness gate workflow.
