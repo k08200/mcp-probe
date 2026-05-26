@@ -1,6 +1,11 @@
 import type { CheckItem, Issue, ToolCallResult } from './types.js';
 
 const DOCS_BASE = 'https://github.com/k08200/mcp-probe#';
+const DOCS = {
+  commands: `${DOCS_BASE}commands`,
+  config: `${DOCS_BASE}config`,
+  sidecarInputs: `${DOCS_BASE}sidecar-inputs`,
+} as const;
 
 function lower(value: string | undefined): string {
   return (value ?? '').toLowerCase();
@@ -21,7 +26,7 @@ export function issueForToolCall(result: ToolCallResult): Issue | undefined {
     return {
       code: 'CONTRACT_ASSERTION_FAILED',
       hint: 'The tool call completed, but its output did not satisfy the sidecar contract. Check required metadata, row limits, stable error codes, and leak assertions.',
-      docsUrl: `${DOCS_BASE}tool-call-contract-assertions`,
+      docsUrl: DOCS.sidecarInputs,
     };
   }
 
@@ -29,7 +34,7 @@ export function issueForToolCall(result: ToolCallResult): Issue | undefined {
     return {
       code: 'TOOL_CALL_AUTH',
       hint: 'The server registered this tool, but the call path hit auth or permission handling. Check OAuth/browser handoff, service tokens, and CI secrets.',
-      docsUrl: `${DOCS_BASE}tool-call-dry-runs`,
+      docsUrl: DOCS.sidecarInputs,
     };
   }
 
@@ -37,7 +42,7 @@ export function issueForToolCall(result: ToolCallResult): Issue | undefined {
     return {
       code: 'TOOL_CALL_TIMEOUT',
       hint: 'The tool call timed out. Increase --timeout if the downstream service is slow, or add a safer sidecar input that reaches a fast read-only path.',
-      docsUrl: `${DOCS_BASE}tool-call-dry-runs`,
+      docsUrl: DOCS.sidecarInputs,
     };
   }
 
@@ -45,14 +50,14 @@ export function issueForToolCall(result: ToolCallResult): Issue | undefined {
     return {
       code: 'AUTO_DRY_RUN_INPUT',
       hint: 'The auto-generated schema-minimum input failed. Add a .mcp-probe.json sidecar with realistic read-only sample inputs for this tool.',
-      docsUrl: `${DOCS_BASE}tool-call-dry-runs`,
+      docsUrl: DOCS.sidecarInputs,
     };
   }
 
   return {
     code: 'TOOL_CALL_FAILED',
     hint: 'The sidecar input reached tools/call but returned an error. Verify the sample input is safe, valid for this environment, and exercises a real read-only path.',
-    docsUrl: `${DOCS_BASE}tool-call-dry-runs`,
+    docsUrl: DOCS.sidecarInputs,
   };
 }
 
@@ -65,7 +70,7 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
     return {
       code: 'NO_TOOLS',
       hint: 'The server responded but did not expose tools. If this is expected, it may be a resources/prompts-only server; otherwise check the server registration code.',
-      docsUrl: `${DOCS_BASE}what-it-checks`,
+      docsUrl: DOCS.commands,
     };
   }
 
@@ -73,7 +78,7 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
     return {
       code: 'TOOL_SCHEMA_INVALID',
       hint: 'At least one discovered tool has an invalid schema. Make sure every MCP tool has a stable name and valid input schema.',
-      docsUrl: `${DOCS_BASE}what-it-checks`,
+      docsUrl: DOCS.commands,
     };
   }
 
@@ -82,14 +87,14 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
       return {
         code: 'SIDECAR_MISSING',
         hint: 'The configured tools file does not exist. Run mcp-probe init --discover or fix the --tools-file / toolsFile path.',
-        docsUrl: `${DOCS_BASE}tool-call-dry-runs`,
+        docsUrl: DOCS.sidecarInputs,
       };
     }
 
     return {
       code: 'SIDECAR_INVALID',
       hint: 'The tools sidecar is not valid JSON or does not match the expected shape. Validate it against schemas/mcp-probe.sidecar.schema.json.',
-      docsUrl: `${DOCS_BASE}batch-ci-gate`,
+      docsUrl: DOCS.config,
     };
   }
 
@@ -98,7 +103,7 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
       return {
         code: 'HANDSHAKE_TIMEOUT',
         hint: 'The server did not complete initialize before the timeout. Increase --timeout or inspect server startup latency and dependency loading.',
-        docsUrl: `${DOCS_BASE}usage`,
+        docsUrl: DOCS.commands,
       };
     }
 
@@ -106,7 +111,7 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
       return {
         code: 'HANDSHAKE_AUTH',
         hint: 'The server failed during initialization with an auth-like error. Check required environment variables, tokens, or remote headers.',
-        docsUrl: `${DOCS_BASE}usage`,
+        docsUrl: DOCS.commands,
       };
     }
 
@@ -114,14 +119,14 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
       return {
         code: 'TARGET_NOT_FOUND',
         hint: 'mcp-probe could not start the target. Check the package name, local path, executable, and server arguments.',
-        docsUrl: `${DOCS_BASE}usage`,
+        docsUrl: DOCS.commands,
       };
     }
 
     return {
       code: 'HANDSHAKE_FAILED',
       hint: 'The target started but did not complete the MCP initialize handshake. Run with the same server arguments locally and inspect stderr.',
-      docsUrl: `${DOCS_BASE}stderr-classification`,
+      docsUrl: DOCS.commands,
     };
   }
 
@@ -134,7 +139,7 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
         : check.status === 'warn'
         ? 'At least one tool call hit auth or permission handling. This often means CI needs tokens or the server needs non-browser auth.'
         : 'At least one tool call failed. Inspect toolCallResults in JSON output for the exact tool and add or refine sidecar inputs.',
-      docsUrl: `${DOCS_BASE}${failedContract ? 'tool-call-contract-assertions' : 'tool-call-dry-runs'}`,
+      docsUrl: DOCS.sidecarInputs,
     };
   }
 
