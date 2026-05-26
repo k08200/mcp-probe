@@ -8,7 +8,7 @@ import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
 import type { CheckStatus, ProbeOptions, ProbeResult, StderrRules, ToolCallResult, ToolExpectations } from '../types.js';
 
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [

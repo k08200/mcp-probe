@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
@@ -14,6 +14,45 @@ describe('runDoctor', () => {
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
       expect(report.overallStatus).toBe('warn');
       expect(report.checks.find((check) => check.name === 'Config file')?.status).toBe('warn');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fixes a missing project setup when target is provided', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      const report = runDoctor({
+        configFile: 'mcp-probe.config.json',
+        fix: true,
+        target: '@modelcontextprotocol/server-memory',
+      });
+
+      expect(report.overallStatus).toBe('pass');
+      expect(existsSync('mcp-probe.config.json')).toBe(true);
+      expect(existsSync('.mcp-probe.json')).toBe(true);
+      expect(existsSync(join('.github', 'workflows', 'mcp-probe.yml'))).toBe(true);
+      expect(readFileSync(join('.github', 'workflows', 'mcp-probe.yml'), 'utf8')).toContain('--github-summary');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not create a missing config without a target', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      const report = runDoctor({ configFile: 'mcp-probe.config.json', fix: true });
+      expect(report.overallStatus).toBe('warn');
+      expect(existsSync('mcp-probe.config.json')).toBe(false);
+      expect(report.checks.find((check) => check.name === 'Fix config file')?.message).toContain('--target');
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
@@ -94,6 +133,35 @@ steps:
       expect(workflow?.message).toContain('actions/checkout@v6');
       expect(workflow?.message).toContain('--config mcp-probe.config.json');
       expect(workflow?.message).toContain('--github-summary');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fixes missing sidecar and workflow files for an existing config', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json', fix: true });
+      expect(report.overallStatus).toBe('pass');
+      expect(existsSync('.mcp-probe.json')).toBe(true);
+      expect(existsSync(join('.github', 'workflows', 'mcp-probe.yml'))).toBe(true);
+
+      const sidecar = JSON.parse(readFileSync('.mcp-probe.json', 'utf8'));
+      expect(sidecar.tools.replace_with_tool_name.input).toEqual({});
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });

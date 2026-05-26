@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0
+
+### Added
+
+- `mcp-probe doctor --fix` to create missing config, sidecar, and GitHub Actions workflow files when possible.
+- `mcp-probe doctor --fix --target <server>` for bootstrapping an empty project into a CI-ready mcp-probe setup.
+- `--tools-file`, `--workflow-file`, and `--force` options for doctor fixes.
+
 ## 1.6.0
 
 ### Changed

@@ -1,7 +1,12 @@
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, isAbsolute, join, resolve } from 'path';
 import { loadConfig } from './config.js';
 import type { CheckStatus, ConfigServer } from './types.js';
+
+const CONFIG_SCHEMA_URL = 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.config.schema.json';
+const SIDECAR_SCHEMA_URL = 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.sidecar.schema.json';
+const DEFAULT_TOOLS_FILE = '.mcp-probe.json';
+const DEFAULT_WORKFLOW_FILE = '.github/workflows/mcp-probe.yml';
 
 export type DoctorCheck = {
   name: string;
@@ -16,6 +21,11 @@ export type DoctorReport = {
 
 export type DoctorOptions = {
   configFile: string;
+  fix?: boolean;
+  target?: string;
+  toolsFile?: string;
+  workflowFile?: string;
+  force?: boolean;
 };
 
 function deriveOverallStatus(checks: DoctorCheck[]): CheckStatus {
@@ -146,8 +156,148 @@ function resolveConfigPath(configFile: string, maybeRelative: string): string {
   return resolve(dirname(configFile), maybeRelative);
 }
 
+function json(value: unknown): string {
+  return JSON.stringify(value, null, 2) + '\n';
+}
+
+function ensureParentDir(path: string): void {
+  const dir = dirname(path);
+  if (dir && dir !== '.') {
+    mkdirSync(dir, { recursive: true });
+  }
+}
+
+function writeIfAllowed(path: string, content: string, force: boolean): DoctorCheck {
+  if (existsSync(path) && !force) {
+    return {
+      name: `Fix ${path}`,
+      status: 'warn',
+      message: 'File already exists; pass --force to overwrite',
+    };
+  }
+
+  ensureParentDir(path);
+  writeFileSync(path, content);
+  return {
+    name: `Fix ${path}`,
+    status: 'pass',
+    message: existsSync(path) && force ? 'Wrote file' : 'Created file',
+  };
+}
+
+function serverNameFromTarget(target: string): string {
+  const withoutProtocol = target.replace(/^https?:\/\//i, '');
+  const last = withoutProtocol.split('/').filter(Boolean).pop() ?? 'mcp-server';
+  return last
+    .replace(/^@/, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'mcp-server';
+}
+
+function buildConfig(target: string, toolsFile: string): string {
+  return json({
+    $schema: CONFIG_SCHEMA_URL,
+    timeoutMs: 10000,
+    servers: [
+      {
+        name: serverNameFromTarget(target),
+        target,
+        probeTools: true,
+        toolsFile,
+      },
+    ],
+  });
+}
+
+function buildSidecar(): string {
+  return json({
+    $schema: SIDECAR_SCHEMA_URL,
+    tools: {
+      replace_with_tool_name: {
+        input: {},
+        expect: {
+          not_error_code: [401, 403],
+        },
+      },
+    },
+  });
+}
+
+function buildWorkflow(configFile: string): string {
+  return `name: MCP Probe
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mcp-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate MCP readiness
+        run: |
+          npx @k08200/mcp-probe@latest \\
+            --config ${configFile} \\
+            --github-summary \\
+            --badge-file mcp-probe-badge.json
+`;
+}
+
+function applyFixes(options: DoctorOptions): DoctorCheck[] {
+  if (!options.fix) return [];
+
+  const checks: DoctorCheck[] = [];
+  const toolsFile = options.toolsFile ?? DEFAULT_TOOLS_FILE;
+  const workflowFile = options.workflowFile ?? DEFAULT_WORKFLOW_FILE;
+  const force = Boolean(options.force);
+
+  if (!existsSync(options.configFile)) {
+    if (!options.target) {
+      checks.push({
+        name: 'Fix config file',
+        status: 'warn',
+        message: 'Cannot create config without --target <server>',
+      });
+    } else {
+      checks.push(writeIfAllowed(options.configFile, buildConfig(options.target, toolsFile), force));
+    }
+  }
+
+  if (existsSync(options.configFile)) {
+    try {
+      const config = loadConfig(options.configFile);
+      for (const configuredToolsFile of uniqueToolsFiles(config.servers)) {
+        const sidecarPath = resolveConfigPath(options.configFile, configuredToolsFile);
+        if (!existsSync(sidecarPath)) {
+          checks.push(writeIfAllowed(sidecarPath, buildSidecar(), force));
+        }
+      }
+    } catch {
+      // The normal validation pass will report the config parse/shape error.
+    }
+  } else if (options.target) {
+    const sidecarPath = resolveConfigPath(options.configFile, toolsFile);
+    if (!existsSync(sidecarPath)) {
+      checks.push(writeIfAllowed(sidecarPath, buildSidecar(), force));
+    }
+  }
+
+  const workflow = workflowStatus(options.configFile);
+  if (workflow.status !== 'pass') {
+    checks.push(writeIfAllowed(workflowFile, buildWorkflow(options.configFile), force));
+  }
+
+  return checks;
+}
+
 export function runDoctor(options: DoctorOptions): DoctorReport {
-  const checks: DoctorCheck[] = [nodeVersionStatus()];
+  const checks: DoctorCheck[] = [nodeVersionStatus(), ...applyFixes(options)];
 
   if (!existsSync(options.configFile)) {
     checks.push({

@@ -67,7 +67,7 @@ function argValue(long: string, short?: string): string | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.6.0');
+  .version('1.7.0');
 
 program
   .command('init')
@@ -140,8 +140,21 @@ program
   .command('doctor')
   .description('check whether the current project is ready to use mcp-probe in CI')
   .option('--config-file <path>', 'config file to inspect', 'mcp-probe.config.json')
+  .option('--fix', 'create missing config, sidecar, and GitHub Actions workflow files when possible')
+  .option('--target <target>', 'server target to use when --fix creates a missing config file')
+  .option('--tools-file <path>', 'sidecar tools file to create when --fix creates a missing config file', '.mcp-probe.json')
+  .option('--workflow-file <path>', 'GitHub Actions workflow file to create when --fix is enabled', '.github/workflows/mcp-probe.yml')
+  .option('--force', 'overwrite existing workflow/config/sidecar files when fixing')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
-  .action((opts: { configFile?: string; output?: string }) => {
+  .action((opts: {
+    configFile?: string;
+    fix?: boolean;
+    target?: string;
+    toolsFile?: string;
+    workflowFile?: string;
+    force?: boolean;
+    output?: string;
+  }) => {
     const configFile = opts.configFile ?? 'mcp-probe.config.json';
     const output = argValue('--output', '-o') ?? opts.output ?? 'terminal';
     if (!['terminal', 'json'].includes(output)) {
@@ -149,7 +162,14 @@ program
       process.exit(1);
     }
 
-    const report = runDoctor({ configFile });
+    const report = runDoctor({
+      configFile,
+      fix: Boolean(opts.fix),
+      target: opts.target,
+      toolsFile: opts.toolsFile,
+      workflowFile: opts.workflowFile,
+      force: Boolean(opts.force),
+    });
     if (output === 'json') {
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     } else {

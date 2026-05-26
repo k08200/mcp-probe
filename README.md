@@ -134,6 +134,9 @@ mcp-probe init --target @modelcontextprotocol/server-memory --discover --github-
 # Check whether this project is ready to run mcp-probe in CI
 mcp-probe doctor
 
+# Create missing config, sidecar, and GitHub Actions workflow files
+mcp-probe doctor --fix --target @modelcontextprotocol/server-memory
+
 # JSON output for scripting or internal CI preflight checks
 mcp-probe doctor --config-file mcp-probe.config.json --output json
 
@@ -334,6 +337,14 @@ For automation, use JSON output:
 ```bash
 mcp-probe doctor --config-file ci/mcp-probe.config.json --output json
 ```
+
+To repair a missing setup, use `--fix`:
+
+```bash
+mcp-probe doctor --fix --target @your-org/your-mcp-server
+```
+
+When the config file is missing, `--target` is required so doctor can create a meaningful `mcp-probe.config.json`. If the config already exists, doctor can create missing sidecar files and a missing GitHub Actions workflow without a target. Existing files are not overwritten unless you pass `--force`.
 
 ## Stderr classification
 
