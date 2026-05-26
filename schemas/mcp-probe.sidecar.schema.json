@@ -27,7 +27,7 @@
             "properties": {
               "not_error_code": {
                 "type": "array",
-                "items": { "type": "number" },
+                "items": { "type": "integer" },
                 "description": "HTTP/status codes that should be treated as warnings instead of failures."
               },
               "status": {

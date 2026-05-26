@@ -7,10 +7,24 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function rejectUnknownKeys(value: Record<string, unknown>, allowed: readonly string[], label: string): void {
+  const allowedSet = new Set(allowed);
+  const unknown = Object.keys(value).filter((key) => !allowedSet.has(key));
+  if (unknown.length > 0) {
+    throw new Error(`Invalid config: ${label} contains unknown field${unknown.length === 1 ? '' : 's'} ${unknown.join(', ')}`);
+  }
+}
+
 function validateServer(server: unknown, index: number): ConfigServer {
   if (!isObject(server)) {
     throw new Error(`Invalid config: servers[${index}] must be an object`);
   }
+
+  rejectUnknownKeys(
+    server,
+    ['name', 'target', 'serverArgs', 'timeoutMs', 'transport', 'headers', 'stderr', 'probeTools', 'toolsFile'],
+    `servers[${index}]`
+  );
 
   if (typeof server.name !== 'string' || server.name.length === 0) {
     throw new Error(`Invalid config: servers[${index}].name must be a non-empty string`);
@@ -42,6 +56,7 @@ function validateServer(server: unknown, index: number): ConfigServer {
       throw new Error(`Invalid config: servers[${index}].stderr must be an object`);
     }
     const stderr = server.stderr as Record<string, unknown>;
+    rejectUnknownKeys(stderr, ['allow', 'fatal'], `servers[${index}].stderr`);
     for (const key of ['allow', 'fatal']) {
       const value = stderr[key];
       if (value !== undefined && (!Array.isArray(value) || !value.every((pattern) => typeof pattern === 'string'))) {
@@ -81,6 +96,7 @@ export function loadConfig(configFile: string): ProbeConfig {
   if (!isObject(parsed)) {
     throw new Error(`Invalid config: root must be an object`);
   }
+  rejectUnknownKeys(parsed, ['$schema', 'timeoutMs', 'servers'], 'root');
   if (parsed.timeoutMs !== undefined && (typeof parsed.timeoutMs !== 'number' || parsed.timeoutMs <= 0)) {
     throw new Error(`Invalid config: timeoutMs must be a positive number`);
   }

@@ -7,10 +7,20 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function rejectUnknownKeys(value: Record<string, unknown>, allowed: readonly string[], label: string): void {
+  const allowedSet = new Set(allowed);
+  const unknown = Object.keys(value).filter((key) => !allowedSet.has(key));
+  if (unknown.length > 0) {
+    throw new Error(`Invalid tools file: ${label} contains unknown field${unknown.length === 1 ? '' : 's'} ${unknown.join(', ')}`);
+  }
+}
+
 export function parseToolSidecar(parsed: unknown, label: string): ToolSidecar {
   if (!isObject(parsed)) {
     throw new Error(`Invalid tools file: ${label} must be an object`);
   }
+
+  rejectUnknownKeys(parsed, ['$schema', 'tools'], label);
 
   if (!isObject(parsed.tools)) {
     throw new Error(`Invalid tools file: ${label} must contain a tools object`);
@@ -20,6 +30,7 @@ export function parseToolSidecar(parsed: unknown, label: string): ToolSidecar {
     if (!isObject(entry)) {
       throw new Error(`Invalid tools file: ${toolName} entry must be an object`);
     }
+    rejectUnknownKeys(entry, ['input', 'expect'], toolName);
     if (!isObject(entry.input)) {
       throw new Error(`Invalid tools file: ${toolName}.input must be an object`);
     }
@@ -29,6 +40,7 @@ export function parseToolSidecar(parsed: unknown, label: string): ToolSidecar {
         throw new Error(`Invalid tools file: ${toolName}.expect must be an object`);
       }
       const expect = entry.expect;
+      rejectUnknownKeys(expect, ['status', 'not_error_code', 'requiredFields', 'maxRows', 'errorCode', 'contains', 'notContains'], `${toolName}.expect`);
       if (expect.status !== undefined && expect.status !== 'pass' && expect.status !== 'fail' && expect.status !== 'warn') {
         throw new Error(`Invalid tools file: ${toolName}.expect.status must be pass, fail, or warn`);
       }

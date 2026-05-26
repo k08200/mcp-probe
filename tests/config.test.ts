@@ -53,6 +53,35 @@ describe('loadConfig', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('rejects unknown root fields', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [{ name: 'memory', target: '@modelcontextprotocol/server-memory' }],
+      typo: true,
+    }));
+
+    try {
+      expect(() => loadConfig(file)).toThrow('root contains unknown field typo');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects unknown server fields', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [{ name: 'memory', target: '@modelcontextprotocol/server-memory', toolFile: './tools.json' }],
+    }));
+
+    try {
+      expect(() => loadConfig(file)).toThrow('servers[0] contains unknown field toolFile');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('checkConfigFile', () => {
