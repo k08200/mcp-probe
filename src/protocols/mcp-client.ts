@@ -3,6 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { assertionFailureMessage, evaluateToolAssertions } from '../assertions.js';
 import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
@@ -200,9 +201,14 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
     const rawCaps = client.getServerCapabilities();
     const capabilities = Object.keys(rawCaps ?? {});
 
-    const toolsStart = Date.now();
-    const toolsResult = await withTimeout(client.listTools(), options.timeoutMs, 'tools/list');
-    const toolsLatencyMs = Date.now() - toolsStart;
+    let toolsLatencyMs = 0;
+    let tools: Tool[] = [];
+    if (rawCaps?.tools) {
+      const toolsStart = Date.now();
+      const toolsResult = await withTimeout(client.listTools(), options.timeoutMs, 'tools/list');
+      toolsLatencyMs = Date.now() - toolsStart;
+      tools = toolsResult.tools;
+    }
 
     let resourcesLatencyMs: number | undefined;
     let promptsLatencyMs: number | undefined;
@@ -228,12 +234,12 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
     }
 
     let toolCallResults: ToolCallResult[] | undefined;
-    if (options.probeTools && toolsResult.tools.length > 0) {
+    if (options.probeTools) {
       toolCallResults = [];
-      const toolsByName = new Map(toolsResult.tools.map((tool) => [tool.name, tool]));
+      const toolsByName = new Map(tools.map((tool) => [tool.name, tool]));
       const toolsToCall = options.sidecar
         ? Object.entries(options.sidecar.tools).map(([name, entry]) => ({ name, entry, tool: toolsByName.get(name) }))
-        : toolsResult.tools.map((tool) => ({ name: tool.name, entry: undefined, tool }));
+        : tools.map((tool) => ({ name: tool.name, entry: undefined, tool }));
 
       for (const candidate of toolsToCall) {
         if (!candidate.tool) {
@@ -283,7 +289,7 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
         version: rawServerInfo?.version ?? 'unknown',
         capabilities,
       },
-      tools: toolsResult.tools.map((t) => ({
+      tools: tools.map((t) => ({
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema,

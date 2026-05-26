@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { probeMcpServer } from '../src/protocols/mcp-client.js';
 
 const fixtureServer = new URL('./fixtures/stdio-mcp-server.js', import.meta.url).pathname;
+const noToolsServer = new URL('./fixtures/no-tools-mcp-server.js', import.meta.url).pathname;
 const stderrWarningServer = new URL('./fixtures/stderr-warning-server.js', import.meta.url).pathname;
 
 describe('probeMcpServer stdio integration', () => {
@@ -102,6 +103,30 @@ describe('probeMcpServer stdio integration', () => {
         status: 'fail',
         source: 'sidecar',
         error: 'Sidecar references a tool that was not discovered: missing_tool',
+      }),
+    ]);
+  }, 10000);
+
+  it('fails sidecar-listed tools even when discovery returns no tools', async () => {
+    const result = await probeMcpServer({
+      command: process.execPath,
+      args: [noToolsServer],
+      timeoutMs: 5000,
+      probeTools: true,
+      sidecar: {
+        tools: {
+          expected_tool: { input: {} },
+        },
+      },
+    });
+
+    expect(result.tools).toEqual([]);
+    expect(result.toolCallResults).toEqual([
+      expect.objectContaining({
+        tool: 'expected_tool',
+        status: 'fail',
+        source: 'sidecar',
+        error: 'Sidecar references a tool that was not discovered: expected_tool',
       }),
     ]);
   }, 10000);
