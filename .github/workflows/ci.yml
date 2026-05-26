@@ -26,6 +26,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: node dist/cli.js doctor --config-file examples/self-check.config.json --output json
 
   smoke-test:
     runs-on: ubuntu-latest

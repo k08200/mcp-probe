@@ -344,7 +344,9 @@ To repair a missing setup, use `--fix`:
 mcp-probe doctor --fix --target @your-org/your-mcp-server
 ```
 
-When the config file is missing, `--target` is required so doctor can create a meaningful `mcp-probe.config.json`. If the config already exists, doctor can create missing sidecar files and a missing GitHub Actions workflow without a target. Existing files are not overwritten unless you pass `--force`.
+When the config file is missing, `--target` is required so doctor can create a meaningful `mcp-probe.config.json`. If the config already exists, doctor can create missing sidecar files and a missing GitHub Actions workflow without a target.
+
+If an existing mcp-probe workflow is incomplete, `doctor --fix` updates it to use the recommended CI gate shape: `actions/checkout@v6`, `--config <file>`, and `--github-summary`. Existing non-mcp-probe workflow files are not overwritten unless you pass `--force`.
 
 ## Stderr classification
 

@@ -67,7 +67,7 @@ function argValue(long: string, short?: string): string | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.7.0');
+  .version('1.8.0');
 
 program
   .command('init')

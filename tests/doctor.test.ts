@@ -139,6 +139,49 @@ steps:
     }
   });
 
+  it('fixes an existing incomplete mcp-probe workflow', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+      writeFileSync('.mcp-probe.json', JSON.stringify({
+        tools: {
+          echo: {
+            input: { message: 'hello' },
+          },
+        },
+      }));
+      mkdirSync(join('.github', 'workflows'), { recursive: true });
+      const workflowFile = join('.github', 'workflows', 'mcp-probe.yml');
+      writeFileSync(workflowFile, `
+steps:
+  - uses: actions/checkout@v4
+  - run: npx @k08200/mcp-probe ./server.js
+`);
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json', fix: true });
+      const workflow = readFileSync(workflowFile, 'utf8');
+
+      expect(report.overallStatus).toBe('pass');
+      expect(workflow).toContain('actions/checkout@v6');
+      expect(workflow).toContain('--config mcp-probe.config.json');
+      expect(workflow).toContain('--github-summary');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('fixes missing sidecar and workflow files for an existing config', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
     const cwd = process.cwd();
@@ -227,6 +270,41 @@ steps:
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
       expect(report.overallStatus).toBe('fail');
       expect(report.checks.find((check) => check.name.includes('.mcp-probe.json'))?.message).toContain('echo.input must be an object');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails for invalid sidecar expectation fields', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+      writeFileSync('.mcp-probe.json', JSON.stringify({
+        tools: {
+          echo: {
+            input: {},
+            expect: {
+              maxRows: '100',
+            },
+          },
+        },
+      }));
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json' });
+      expect(report.overallStatus).toBe('fail');
+      expect(report.checks.find((check) => check.name.includes('.mcp-probe.json'))?.message).toContain('echo.expect.maxRows');
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });

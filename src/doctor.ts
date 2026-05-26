@@ -80,6 +80,34 @@ function validateSidecar(path: string): DoctorCheck {
       if (!input || typeof input !== 'object' || Array.isArray(input)) {
         throw new Error(`${toolName}.input must be an object`);
       }
+      const expect = (entry as { expect?: unknown }).expect;
+      if (expect !== undefined) {
+        if (!expect || typeof expect !== 'object' || Array.isArray(expect)) {
+          throw new Error(`${toolName}.expect must be an object`);
+        }
+        const typedExpect = expect as Record<string, unknown>;
+        if (typedExpect.status !== undefined && !['pass', 'fail', 'warn'].includes(String(typedExpect.status))) {
+          throw new Error(`${toolName}.expect.status must be pass, fail, or warn`);
+        }
+        if (typedExpect.not_error_code !== undefined && (!Array.isArray(typedExpect.not_error_code) || !typedExpect.not_error_code.every((code) => Number.isInteger(code)))) {
+          throw new Error(`${toolName}.expect.not_error_code must be an integer array`);
+        }
+        if (typedExpect.requiredFields !== undefined && (!Array.isArray(typedExpect.requiredFields) || !typedExpect.requiredFields.every((field) => typeof field === 'string'))) {
+          throw new Error(`${toolName}.expect.requiredFields must be a string array`);
+        }
+        if (typedExpect.maxRows !== undefined && (typeof typedExpect.maxRows !== 'number' || typedExpect.maxRows < 0)) {
+          throw new Error(`${toolName}.expect.maxRows must be a non-negative number`);
+        }
+        if (typedExpect.errorCode !== undefined && typeof typedExpect.errorCode !== 'string') {
+          throw new Error(`${toolName}.expect.errorCode must be a string`);
+        }
+        for (const key of ['contains', 'notContains']) {
+          const value = typedExpect[key];
+          if (value !== undefined && (!Array.isArray(value) || !value.every((snippet) => typeof snippet === 'string'))) {
+            throw new Error(`${toolName}.expect.${key} must be a string array`);
+          }
+        }
+      }
     }
     return {
       name: `Sidecar ${path}`,
@@ -101,7 +129,7 @@ function workflowStatus(configFile: string): DoctorCheck {
     return {
       name: 'GitHub Actions workflow',
       status: 'warn',
-      message: 'No .github/workflows directory found',
+      message: 'No .github/workflows directory found. Next: run "mcp-probe doctor --fix --target <server>".',
     };
   }
 
@@ -116,7 +144,7 @@ function workflowStatus(configFile: string): DoctorCheck {
     return {
       name: 'GitHub Actions workflow',
       status: 'warn',
-      message: 'No workflow file mentions mcp-probe',
+      message: 'No workflow file mentions mcp-probe. Next: run "mcp-probe doctor --fix".',
     };
   }
 
@@ -143,7 +171,7 @@ function workflowStatus(configFile: string): DoctorCheck {
     : {
         name: 'GitHub Actions workflow',
         status: 'warn',
-        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} mentioning mcp-probe, but missing ${missing.join(', ')}`,
+        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} mentioning mcp-probe, but missing ${missing.join(', ')}. Next: run "mcp-probe doctor --fix".`,
       };
 }
 
@@ -183,6 +211,19 @@ function writeIfAllowed(path: string, content: string, force: boolean): DoctorCh
     status: 'pass',
     message: existsSync(path) && force ? 'Wrote file' : 'Created file',
   };
+}
+
+function workflowFiles(): Array<{ file: string; content: string }> {
+  const dir = '.github/workflows';
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'))
+    .map((file) => join(dir, file))
+    .map((file) => ({ file, content: readFileSync(file, 'utf8') }));
+}
+
+function matchingWorkflowFiles(): Array<{ file: string; content: string }> {
+  return workflowFiles().filter(({ content }) => content.includes('mcp-probe'));
 }
 
 function serverNameFromTarget(target: string): string {
@@ -249,6 +290,52 @@ jobs:
 `;
 }
 
+function patchWorkflowContent(content: string, configFile: string): string {
+  const patchedCheckout = content.replace(/actions\/checkout@v\d+/g, 'actions/checkout@v6');
+  const normalized = patchedCheckout.replaceAll('\\', '/');
+  const hasCheckout = patchedCheckout.includes('actions/checkout@v6');
+  const hasConfig = /--config(?:=|\s+)/.test(patchedCheckout) && normalized.includes(configFile.replaceAll('\\', '/'));
+  const hasSummary = patchedCheckout.includes('--github-summary');
+
+  if (hasCheckout && hasConfig && hasSummary) {
+    return patchedCheckout;
+  }
+
+  return buildWorkflow(configFile);
+}
+
+function fixWorkflow(configFile: string, workflowFile: string, force: boolean): DoctorCheck {
+  if (existsSync(workflowFile)) {
+    const content = readFileSync(workflowFile, 'utf8');
+    if (!content.includes('mcp-probe') && !force) {
+      return {
+        name: `Fix ${workflowFile}`,
+        status: 'warn',
+        message: 'File exists but does not look like an mcp-probe workflow; pass --force to overwrite',
+      };
+    }
+    ensureParentDir(workflowFile);
+    writeFileSync(workflowFile, patchWorkflowContent(content, configFile));
+    return {
+      name: `Fix ${workflowFile}`,
+      status: 'pass',
+      message: 'Updated workflow',
+    };
+  }
+
+  const match = matchingWorkflowFiles()[0];
+  if (match) {
+    writeFileSync(match.file, patchWorkflowContent(match.content, configFile));
+    return {
+      name: `Fix ${match.file}`,
+      status: 'pass',
+      message: 'Updated workflow',
+    };
+  }
+
+  return writeIfAllowed(workflowFile, buildWorkflow(configFile), force);
+}
+
 function applyFixes(options: DoctorOptions): DoctorCheck[] {
   if (!options.fix) return [];
 
@@ -262,7 +349,7 @@ function applyFixes(options: DoctorOptions): DoctorCheck[] {
       checks.push({
         name: 'Fix config file',
         status: 'warn',
-        message: 'Cannot create config without --target <server>',
+        message: 'Cannot create config without --target <server>. Next: run "mcp-probe doctor --fix --target <server>".',
       });
     } else {
       checks.push(writeIfAllowed(options.configFile, buildConfig(options.target, toolsFile), force));
@@ -290,7 +377,7 @@ function applyFixes(options: DoctorOptions): DoctorCheck[] {
 
   const workflow = workflowStatus(options.configFile);
   if (workflow.status !== 'pass') {
-    checks.push(writeIfAllowed(workflowFile, buildWorkflow(options.configFile), force));
+    checks.push(fixWorkflow(options.configFile, workflowFile, force));
   }
 
   return checks;
