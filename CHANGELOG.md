@@ -4,10 +4,20 @@
 
 ### Added
 
-- `mcp-probe doctor --fix` now updates incomplete existing mcp-probe workflows instead of only creating missing workflow files.
+- `mcp-probe doctor --fix` now detects incomplete existing mcp-probe workflows and reports them without rewriting by default.
 - Doctor sidecar validation now checks expectation field types, including `status`, `not_error_code`, `requiredFields`, `maxRows`, `errorCode`, `contains`, and `notContains`.
 - Doctor warning messages now include concrete next-command suggestions for common setup issues.
 - The project CI now dogfoods `mcp-probe doctor` on every Node.js test matrix run.
+
+### Changed
+
+- Shared config, sidecar, and workflow scaffolding between `init` and `doctor`.
+- Shared sidecar validation between runtime checks and `doctor`.
+- Reduced README scope to the core CI readiness gate workflow.
+
+### Removed
+
+- Removed per-version release note files from the repository; `CHANGELOG.md` is now the source of release history.
 
 ## 1.7.0
 

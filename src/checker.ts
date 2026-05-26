@@ -1,10 +1,8 @@
-import { existsSync, readFileSync } from 'fs';
 import { withIssue } from './issues.js';
 import { probeMcpServer } from './protocols/mcp-client.js';
 import { redactText, redactUnknown } from './redact.js';
-import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, ToolSidecar, TransportMode } from './types.js';
-
-const SIDECAR_FILENAME = '.mcp-probe.json';
+import { loadOptionalSidecar } from './sidecar.js';
+import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, TransportMode } from './types.js';
 
 function isUrlTarget(target: string): boolean {
   return /^https?:\/\//i.test(target);
@@ -23,74 +21,6 @@ export function resolveTarget(target: string, transport?: TransportMode): Resolv
     return { transport: 'stdio', command: 'node', args: [target] };
   }
   return { transport: 'stdio', command: 'npx', args: ['--yes', target] };
-}
-
-function loadSidecar(toolsFile?: string): ToolSidecar | undefined {
-  const path = toolsFile ?? SIDECAR_FILENAME;
-  if (!existsSync(path)) {
-    if (!toolsFile) return undefined;
-    throw new Error(`Cannot read tools file: ${path}`);
-  }
-
-  let parsed: unknown;
-  try {
-    const raw = readFileSync(path, 'utf8');
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(`Invalid tools file JSON: ${path}`);
-  }
-
-  if (!parsed || typeof parsed !== 'object') {
-    throw new Error(`Invalid tools file: ${path} must be an object`);
-  }
-
-  const sidecar = parsed as Partial<ToolSidecar>;
-  if (!sidecar.tools || typeof sidecar.tools !== 'object' || Array.isArray(sidecar.tools)) {
-    throw new Error(`Invalid tools file: ${path} must contain a tools object`);
-  }
-
-  for (const [toolName, entry] of Object.entries(sidecar.tools)) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-      throw new Error(`Invalid tools file: ${toolName} entry must be an object`);
-    }
-    const toolEntry = entry as {
-      input?: unknown;
-      expect?: {
-        status?: unknown;
-        not_error_code?: unknown;
-        requiredFields?: unknown;
-        maxRows?: unknown;
-        errorCode?: unknown;
-        contains?: unknown;
-        notContains?: unknown;
-      };
-    };
-    if (!toolEntry.input || typeof toolEntry.input !== 'object' || Array.isArray(toolEntry.input)) {
-      throw new Error(`Invalid tools file: ${toolName}.input must be an object`);
-    }
-    const codes = toolEntry.expect?.not_error_code;
-    if (codes !== undefined && (!Array.isArray(codes) || !codes.every((c) => typeof c === 'number'))) {
-      throw new Error(`Invalid tools file: ${toolName}.expect.not_error_code must be a number array`);
-    }
-    const status = toolEntry.expect?.status;
-    if (status !== undefined && status !== 'pass' && status !== 'fail' && status !== 'warn') {
-      throw new Error(`Invalid tools file: ${toolName}.expect.status must be pass, fail, or warn`);
-    }
-    for (const key of ['requiredFields', 'contains', 'notContains'] as const) {
-      const value = toolEntry.expect?.[key];
-      if (value !== undefined && (!Array.isArray(value) || !value.every((item) => typeof item === 'string'))) {
-        throw new Error(`Invalid tools file: ${toolName}.expect.${key} must be a string array`);
-      }
-    }
-    if (toolEntry.expect?.maxRows !== undefined && (typeof toolEntry.expect.maxRows !== 'number' || toolEntry.expect.maxRows < 0)) {
-      throw new Error(`Invalid tools file: ${toolName}.expect.maxRows must be a non-negative number`);
-    }
-    if (toolEntry.expect?.errorCode !== undefined && typeof toolEntry.expect.errorCode !== 'string') {
-      throw new Error(`Invalid tools file: ${toolName}.expect.errorCode must be a string`);
-    }
-  }
-
-  return sidecar as ToolSidecar;
 }
 
 function deriveOverallStatus(checks: CheckItem[]): CheckStatus {
@@ -117,7 +47,7 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
   }));
 
   try {
-    const sidecar = probeTools ? loadSidecar(options.toolsFile) : undefined;
+    const sidecar = probeTools ? loadOptionalSidecar(options.toolsFile) : undefined;
     const probe = await probeMcpServer({
       transport: resolved.transport,
       command: resolved.command,

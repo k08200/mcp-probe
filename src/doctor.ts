@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, isAbsolute, join, resolve } from 'path';
 import { loadConfig } from './config.js';
+import { buildConfig, buildToolsFile, buildWorkflow, json } from './scaffold.js';
+import { readToolSidecar } from './sidecar.js';
 import type { CheckStatus, ConfigServer } from './types.js';
 
-const CONFIG_SCHEMA_URL = 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.config.schema.json';
-const SIDECAR_SCHEMA_URL = 'https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.sidecar.schema.json';
 const DEFAULT_TOOLS_FILE = '.mcp-probe.json';
 const DEFAULT_WORKFLOW_FILE = '.github/workflows/mcp-probe.yml';
 
@@ -56,58 +56,14 @@ function validateSidecar(path: string): DoctorCheck {
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('root must be an object');
-    }
-    const tools = (parsed as { tools?: unknown }).tools;
-    if (!tools || typeof tools !== 'object' || Array.isArray(tools)) {
-      throw new Error('tools must be an object');
-    }
-    const entries = Object.entries(tools as Record<string, unknown>);
+    const sidecar = readToolSidecar(path);
+    const entries = Object.entries(sidecar.tools);
     if (entries.length === 0) {
       return {
         name: `Sidecar ${path}`,
         status: 'warn',
         message: 'No tool entries found',
       };
-    }
-    for (const [toolName, entry] of entries) {
-      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-        throw new Error(`${toolName} entry must be an object`);
-      }
-      const input = (entry as { input?: unknown }).input;
-      if (!input || typeof input !== 'object' || Array.isArray(input)) {
-        throw new Error(`${toolName}.input must be an object`);
-      }
-      const expect = (entry as { expect?: unknown }).expect;
-      if (expect !== undefined) {
-        if (!expect || typeof expect !== 'object' || Array.isArray(expect)) {
-          throw new Error(`${toolName}.expect must be an object`);
-        }
-        const typedExpect = expect as Record<string, unknown>;
-        if (typedExpect.status !== undefined && !['pass', 'fail', 'warn'].includes(String(typedExpect.status))) {
-          throw new Error(`${toolName}.expect.status must be pass, fail, or warn`);
-        }
-        if (typedExpect.not_error_code !== undefined && (!Array.isArray(typedExpect.not_error_code) || !typedExpect.not_error_code.every((code) => Number.isInteger(code)))) {
-          throw new Error(`${toolName}.expect.not_error_code must be an integer array`);
-        }
-        if (typedExpect.requiredFields !== undefined && (!Array.isArray(typedExpect.requiredFields) || !typedExpect.requiredFields.every((field) => typeof field === 'string'))) {
-          throw new Error(`${toolName}.expect.requiredFields must be a string array`);
-        }
-        if (typedExpect.maxRows !== undefined && (typeof typedExpect.maxRows !== 'number' || typedExpect.maxRows < 0)) {
-          throw new Error(`${toolName}.expect.maxRows must be a non-negative number`);
-        }
-        if (typedExpect.errorCode !== undefined && typeof typedExpect.errorCode !== 'string') {
-          throw new Error(`${toolName}.expect.errorCode must be a string`);
-        }
-        for (const key of ['contains', 'notContains']) {
-          const value = typedExpect[key];
-          if (value !== undefined && (!Array.isArray(value) || !value.every((snippet) => typeof snippet === 'string'))) {
-            throw new Error(`${toolName}.expect.${key} must be a string array`);
-          }
-        }
-      }
     }
     return {
       name: `Sidecar ${path}`,
@@ -184,10 +140,6 @@ function resolveConfigPath(configFile: string, maybeRelative: string): string {
   return resolve(dirname(configFile), maybeRelative);
 }
 
-function json(value: unknown): string {
-  return JSON.stringify(value, null, 2) + '\n';
-}
-
 function ensureParentDir(path: string): void {
   const dir = dirname(path);
   if (dir && dir !== '.') {
@@ -226,110 +178,42 @@ function matchingWorkflowFiles(): Array<{ file: string; content: string }> {
   return workflowFiles().filter(({ content }) => content.includes('mcp-probe'));
 }
 
-function serverNameFromTarget(target: string): string {
-  const withoutProtocol = target.replace(/^https?:\/\//i, '');
-  const last = withoutProtocol.split('/').filter(Boolean).pop() ?? 'mcp-server';
-  return last
-    .replace(/^@/, '')
-    .replace(/[^a-zA-Z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'mcp-server';
-}
-
-function buildConfig(target: string, toolsFile: string): string {
-  return json({
-    $schema: CONFIG_SCHEMA_URL,
-    timeoutMs: 10000,
-    servers: [
-      {
-        name: serverNameFromTarget(target),
-        target,
-        probeTools: true,
-        toolsFile,
-      },
-    ],
-  });
-}
-
 function buildSidecar(): string {
-  return json({
-    $schema: SIDECAR_SCHEMA_URL,
-    tools: {
-      replace_with_tool_name: {
-        input: {},
-        expect: {
-          not_error_code: [401, 403],
-        },
-      },
-    },
-  });
-}
-
-function buildWorkflow(configFile: string): string {
-  return `name: MCP Probe
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
-jobs:
-  mcp-probe:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Validate MCP readiness
-        run: |
-          npx @k08200/mcp-probe@latest \\
-            --config ${configFile} \\
-            --github-summary \\
-            --badge-file mcp-probe-badge.json
-`;
-}
-
-function patchWorkflowContent(content: string, configFile: string): string {
-  const patchedCheckout = content.replace(/actions\/checkout@v\d+/g, 'actions/checkout@v6');
-  const normalized = patchedCheckout.replaceAll('\\', '/');
-  const hasCheckout = patchedCheckout.includes('actions/checkout@v6');
-  const hasConfig = /--config(?:=|\s+)/.test(patchedCheckout) && normalized.includes(configFile.replaceAll('\\', '/'));
-  const hasSummary = patchedCheckout.includes('--github-summary');
-
-  if (hasCheckout && hasConfig && hasSummary) {
-    return patchedCheckout;
-  }
-
-  return buildWorkflow(configFile);
+  return json(buildToolsFile());
 }
 
 function fixWorkflow(configFile: string, workflowFile: string, force: boolean): DoctorCheck {
   if (existsSync(workflowFile)) {
     const content = readFileSync(workflowFile, 'utf8');
-    if (!content.includes('mcp-probe') && !force) {
+    if (content.includes('mcp-probe') && !force) {
       return {
         name: `Fix ${workflowFile}`,
         status: 'warn',
-        message: 'File exists but does not look like an mcp-probe workflow; pass --force to overwrite',
+        message: 'Existing mcp-probe workflow is incomplete; not rewriting it automatically',
+      };
+    }
+    if (!force) {
+      return {
+        name: `Fix ${workflowFile}`,
+        status: 'warn',
+        message: 'Workflow already exists; review the suggested workflow in the README or pass --force to replace it',
       };
     }
     ensureParentDir(workflowFile);
-    writeFileSync(workflowFile, patchWorkflowContent(content, configFile));
+    writeFileSync(workflowFile, buildWorkflow(configFile));
     return {
       name: `Fix ${workflowFile}`,
-      status: 'pass',
-      message: 'Updated workflow',
+      status: 'warn',
+      message: 'Replaced workflow because --force was provided',
     };
   }
 
   const match = matchingWorkflowFiles()[0];
   if (match) {
-    writeFileSync(match.file, patchWorkflowContent(match.content, configFile));
     return {
       name: `Fix ${match.file}`,
-      status: 'pass',
-      message: 'Updated workflow',
+      status: 'warn',
+      message: 'Existing mcp-probe workflow is incomplete; not rewriting it automatically',
     };
   }
 
@@ -352,7 +236,7 @@ function applyFixes(options: DoctorOptions): DoctorCheck[] {
         message: 'Cannot create config without --target <server>. Next: run "mcp-probe doctor --fix --target <server>".',
       });
     } else {
-      checks.push(writeIfAllowed(options.configFile, buildConfig(options.target, toolsFile), force));
+      checks.push(writeIfAllowed(options.configFile, json(buildConfig({ target: options.target, toolsFile })), force));
     }
   }
 

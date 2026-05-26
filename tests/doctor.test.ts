@@ -139,7 +139,7 @@ steps:
     }
   });
 
-  it('fixes an existing incomplete mcp-probe workflow', () => {
+  it('does not rewrite an existing incomplete mcp-probe workflow without force', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
     const cwd = process.cwd();
     process.chdir(dir);
@@ -169,13 +169,13 @@ steps:
   - run: npx @k08200/mcp-probe ./server.js
 `);
 
+      const original = readFileSync(workflowFile, 'utf8');
       const report = runDoctor({ configFile: 'mcp-probe.config.json', fix: true });
       const workflow = readFileSync(workflowFile, 'utf8');
 
-      expect(report.overallStatus).toBe('pass');
-      expect(workflow).toContain('actions/checkout@v6');
-      expect(workflow).toContain('--config mcp-probe.config.json');
-      expect(workflow).toContain('--github-summary');
+      expect(report.overallStatus).toBe('warn');
+      expect(workflow).toBe(original);
+      expect(report.checks.find((check) => check.name === `Fix ${workflowFile}`)?.message).toContain('not rewriting');
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
