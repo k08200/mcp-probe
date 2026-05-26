@@ -6,9 +6,8 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { assertionFailureMessage, evaluateToolAssertions } from '../assertions.js';
 import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
+import { VERSION } from '../version.js';
 import type { CheckStatus, ProbeOptions, ProbeResult, StderrRules, ToolCallResult, ToolExpectations } from '../types.js';
-
-const VERSION = '1.8.0';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [

@@ -9,6 +9,7 @@ import { renderGithubActions } from './reporters/github.js';
 import { writeBadgeFile } from './reporters/badge.js';
 import { initProject } from './init.js';
 import { runDoctor } from './doctor.js';
+import { VERSION } from './version.js';
 import type { TransportMode } from './types.js';
 
 const program = new Command();
@@ -67,7 +68,7 @@ function argValue(long: string, short?: string): string | undefined {
 program
   .name('mcp-probe')
   .description('Quality checker for MCP servers')
-  .version('1.8.0');
+  .version(VERSION);
 
 program
   .command('init')
