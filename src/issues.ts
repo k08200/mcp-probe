@@ -90,6 +90,14 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
     };
   }
 
+  if (check.name === 'Tool dry-run coverage') {
+    return {
+      code: 'TOOL_DRY_RUN_COVERAGE_MISSING',
+      hint: 'At least one expected tool is not covered by a sidecar sample input. Add it to the toolsFile so CI verifies the real tools/call path.',
+      docsUrl: DOCS.sidecarInputs,
+    };
+  }
+
   if (check.name === 'Tool sidecar') {
     if (message.includes('cannot read')) {
       return {

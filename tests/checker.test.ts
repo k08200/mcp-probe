@@ -216,6 +216,82 @@ describe('checkMcpServer', () => {
     expect(check?.message).toContain('unexpected: delete_file');
   });
 
+  it('passes dry-run coverage when expected tools have sidecar samples', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-test-'));
+    const toolsFile = join(dir, 'tools.json');
+    writeFileSync(
+      toolsFile,
+      JSON.stringify({
+        tools: {
+          read_file: { input: { path: 'README.md' } },
+          search: { input: { query: 'hello' } },
+        },
+      })
+    );
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        tools: [{ name: 'read_file' }, { name: 'search' }],
+        toolCallResults: [
+          { tool: 'read_file', status: 'pass', latencyMs: 10, source: 'sidecar' },
+          { tool: 'search', status: 'pass', latencyMs: 10, source: 'sidecar' },
+        ],
+      })
+    );
+
+    try {
+      const report = await checkMcpServer({
+        target: '@test/server',
+        timeoutMs: 5000,
+        expectedTools: ['read_file', 'search'],
+        toolsFile,
+      });
+
+      const check = report.checks.find((c) => c.name === 'Tool dry-run coverage');
+      expect(check?.status).toBe('pass');
+      expect(report.overallStatus).toBe('pass');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails dry-run coverage when expected tools lack sidecar samples', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-test-'));
+    const toolsFile = join(dir, 'tools.json');
+    writeFileSync(
+      toolsFile,
+      JSON.stringify({
+        tools: {
+          read_file: { input: { path: 'README.md' } },
+        },
+      })
+    );
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({
+        tools: [{ name: 'read_file' }, { name: 'search' }],
+        toolCallResults: [
+          { tool: 'read_file', status: 'pass', latencyMs: 10, source: 'sidecar' },
+        ],
+      })
+    );
+
+    try {
+      const report = await checkMcpServer({
+        target: '@test/server',
+        timeoutMs: 5000,
+        expectedTools: ['read_file', 'search'],
+        toolsFile,
+      });
+
+      const check = report.checks.find((c) => c.name === 'Tool dry-run coverage');
+      expect(check?.status).toBe('fail');
+      expect(check?.message).toContain('missing sidecar samples for expected tools: search');
+      expect(check?.issue?.code).toBe('TOOL_DRY_RUN_COVERAGE_MISSING');
+      expect(report.overallStatus).toBe('fail');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('passes probe options with correct command for npm packages', async () => {
     mockedProbe.mockResolvedValue(makeProbeResult());
 

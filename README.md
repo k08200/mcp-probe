@@ -92,6 +92,7 @@ Use `mcp-probe.config.json` when a repository depends on one or more MCP servers
 Relative local `target` and `toolsFile` paths are resolved from the config file directory.
 
 Use `expectedTools` for tools that must be advertised, `allowedTools` for an exact allow-list, and `forbiddenTools` for dangerous tools that must not appear in low-trust configs.
+When `expectedTools` and a `toolsFile` are both set, every expected tool must also have a sidecar sample input so CI proves the tool is actually dry-run.
 
 Run:
 

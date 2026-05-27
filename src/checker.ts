@@ -2,7 +2,7 @@ import { withIssue } from './issues.js';
 import { probeMcpServer } from './protocols/mcp-client.js';
 import { redactText, redactUnknown } from './redact.js';
 import { loadOptionalSidecar } from './sidecar.js';
-import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, TransportMode } from './types.js';
+import type { CheckItem, CheckOptions, CheckReport, CheckStatus, ResolvedTarget, ToolSidecar, TransportMode } from './types.js';
 
 function isUrlTarget(target: string): boolean {
   return /^https?:\/\//i.test(target);
@@ -53,6 +53,27 @@ function toolCatalogCheck(tools: Array<{ name: string }>, options: CheckOptions)
     message: failures.length > 0
       ? failures.join('; ')
       : 'Discovered tools satisfy configured catalog policy',
+  });
+}
+
+function toolDryRunCoverageCheck(options: CheckOptions, sidecar: ToolSidecar | undefined): CheckItem | undefined {
+  if (!options.probeTools && !options.toolsFile) return undefined;
+  if (!sidecar || !options.expectedTools?.length) return undefined;
+
+  const sampled = new Set(Object.keys(sidecar.tools));
+  const missing = options.expectedTools.filter((name) => !sampled.has(name));
+  if (missing.length === 0) {
+    return withIssue({
+      name: 'Tool dry-run coverage',
+      status: 'pass',
+      message: 'All expected tools have sidecar sample inputs',
+    });
+  }
+
+  return withIssue({
+    name: 'Tool dry-run coverage',
+    status: 'fail',
+    message: `missing sidecar samples for expected tools: ${missing.join(', ')}`,
   });
 }
 
@@ -117,6 +138,8 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
 
     const catalogCheck = toolCatalogCheck(probe.tools, options);
     if (catalogCheck) checks.push(catalogCheck);
+    const dryRunCoverageCheck = toolDryRunCoverageCheck({ ...options, probeTools }, sidecar);
+    if (dryRunCoverageCheck) checks.push(dryRunCoverageCheck);
 
     if (probe.resources.length > 0 || probe.resourcesLatencyMs !== undefined) {
       checks.push(withIssue({
