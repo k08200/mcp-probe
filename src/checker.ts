@@ -29,6 +29,33 @@ function deriveOverallStatus(checks: CheckItem[]): CheckStatus {
   return 'pass';
 }
 
+function toolCatalogCheck(tools: Array<{ name: string }>, options: CheckOptions): CheckItem | undefined {
+  if (!options.expectedTools?.length && !options.allowedTools?.length && !options.forbiddenTools?.length) {
+    return undefined;
+  }
+
+  const discovered = new Set(tools.map((tool) => tool.name).filter(Boolean));
+  const missing = (options.expectedTools ?? []).filter((name) => !discovered.has(name));
+  const forbidden = (options.forbiddenTools ?? []).filter((name) => discovered.has(name));
+  const allowed = options.allowedTools ? new Set(options.allowedTools) : undefined;
+  const unexpected = allowed
+    ? [...discovered].filter((name) => !allowed.has(name))
+    : [];
+
+  const failures: string[] = [];
+  if (missing.length > 0) failures.push(`missing expected: ${missing.join(', ')}`);
+  if (forbidden.length > 0) failures.push(`forbidden present: ${forbidden.join(', ')}`);
+  if (unexpected.length > 0) failures.push(`unexpected: ${unexpected.join(', ')}`);
+
+  return withIssue({
+    name: 'Tool catalog policy',
+    status: failures.length > 0 ? 'fail' : 'pass',
+    message: failures.length > 0
+      ? failures.join('; ')
+      : 'Discovered tools satisfy configured catalog policy',
+  });
+}
+
 export async function checkMcpServer(options: CheckOptions): Promise<CheckReport> {
   const startTime = Date.now();
   const checks: CheckItem[] = [];
@@ -87,6 +114,9 @@ export async function checkMcpServer(options: CheckOptions): Promise<CheckReport
           : 'All tool schemas are valid',
       }));
     }
+
+    const catalogCheck = toolCatalogCheck(probe.tools, options);
+    if (catalogCheck) checks.push(catalogCheck);
 
     if (probe.resources.length > 0 || probe.resourcesLatencyMs !== undefined) {
       checks.push(withIssue({

@@ -81,6 +81,8 @@ Use `mcp-probe.config.json` when a repository depends on one or more MCP servers
       "headers": {
         "Authorization": "Bearer ${DATADOG_MCP_TOKEN}"
       },
+      "expectedTools": ["logs_query"],
+      "forbiddenTools": ["delete_dashboard", "rotate_api_key"],
       "toolsFile": "./datadog.tools.json"
     }
   ]
@@ -88,6 +90,8 @@ Use `mcp-probe.config.json` when a repository depends on one or more MCP servers
 ```
 
 Relative local `target` and `toolsFile` paths are resolved from the config file directory.
+
+Use `expectedTools` for tools that must be advertised, `allowedTools` for an exact allow-list, and `forbiddenTools` for dangerous tools that must not appear in low-trust configs.
 
 Run:
 

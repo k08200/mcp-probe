@@ -61,6 +61,21 @@
               }
             }
           },
+          "expectedTools": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tool names that must be present in tools/list."
+          },
+          "allowedTools": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "When set, every discovered tool must be listed here."
+          },
+          "forbiddenTools": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tool names that must not be present in tools/list."
+          },
           "probeTools": {
             "type": "boolean"
           },

@@ -151,6 +151,71 @@ describe('checkMcpServer', () => {
     expect(schemaCheck?.issue?.code).toBe('TOOL_SCHEMA_INVALID');
   });
 
+  it('passes when discovered tools satisfy catalog policy', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({ tools: [{ name: 'read_file' }, { name: 'search' }] })
+    );
+
+    const report = await checkMcpServer({
+      target: '@test/server',
+      timeoutMs: 5000,
+      expectedTools: ['read_file'],
+      forbiddenTools: ['delete_file'],
+    });
+
+    const check = report.checks.find((c) => c.name === 'Tool catalog policy');
+    expect(check?.status).toBe('pass');
+    expect(report.overallStatus).toBe('pass');
+  });
+
+  it('fails when expected tools are missing', async () => {
+    mockedProbe.mockResolvedValue(makeProbeResult({ tools: [{ name: 'read_file' }] }));
+
+    const report = await checkMcpServer({
+      target: '@test/server',
+      timeoutMs: 5000,
+      expectedTools: ['read_file', 'search'],
+    });
+
+    const check = report.checks.find((c) => c.name === 'Tool catalog policy');
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('missing expected: search');
+    expect(check?.issue?.code).toBe('TOOL_CATALOG_MISMATCH');
+    expect(report.overallStatus).toBe('fail');
+  });
+
+  it('fails when forbidden tools are present', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({ tools: [{ name: 'read_file' }, { name: 'delete_file' }] })
+    );
+
+    const report = await checkMcpServer({
+      target: '@test/server',
+      timeoutMs: 5000,
+      forbiddenTools: ['delete_file'],
+    });
+
+    const check = report.checks.find((c) => c.name === 'Tool catalog policy');
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('forbidden present: delete_file');
+  });
+
+  it('fails when discovered tools are outside allowedTools', async () => {
+    mockedProbe.mockResolvedValue(
+      makeProbeResult({ tools: [{ name: 'read_file' }, { name: 'delete_file' }] })
+    );
+
+    const report = await checkMcpServer({
+      target: '@test/server',
+      timeoutMs: 5000,
+      allowedTools: ['read_file'],
+    });
+
+    const check = report.checks.find((c) => c.name === 'Tool catalog policy');
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('unexpected: delete_file');
+  });
+
   it('passes probe options with correct command for npm packages', async () => {
     mockedProbe.mockResolvedValue(makeProbeResult());
 

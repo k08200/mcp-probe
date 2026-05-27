@@ -82,6 +82,20 @@ describe('loadConfig', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('rejects invalid tool catalog policy fields', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-config-'));
+    const file = join(dir, 'mcp-probe.config.json');
+    writeFileSync(file, JSON.stringify({
+      servers: [{ name: 'memory', target: '@modelcontextprotocol/server-memory', forbiddenTools: 'delete_file' }],
+    }));
+
+    try {
+      expect(() => loadConfig(file)).toThrow('servers[0].forbiddenTools must be a string array');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('checkConfigFile', () => {
@@ -95,7 +109,14 @@ describe('checkConfigFile', () => {
     writeFileSync(file, JSON.stringify({
       timeoutMs: 8000,
       servers: [
-        { name: 'local', target: './fixtures/server.js', probeTools: true },
+        {
+          name: 'local',
+          target: './fixtures/server.js',
+          expectedTools: ['read_file'],
+          allowedTools: ['read_file', 'search'],
+          forbiddenTools: ['delete_file'],
+          probeTools: true,
+        },
         {
           name: 'datadog',
           target: 'https://mcp.example.com/mcp',
@@ -122,6 +143,9 @@ describe('checkConfigFile', () => {
         transport: undefined,
         headers: undefined,
         stderr: undefined,
+        expectedTools: ['read_file'],
+        allowedTools: ['read_file', 'search'],
+        forbiddenTools: ['delete_file'],
         probeTools: true,
         toolsFile: undefined,
       });
@@ -132,6 +156,9 @@ describe('checkConfigFile', () => {
         transport: 'http',
         headers: { Authorization: 'Bearer test' },
         stderr: { allow: ['^Warning:'], fatal: ['panic'] },
+        expectedTools: undefined,
+        allowedTools: undefined,
+        forbiddenTools: undefined,
         probeTools: undefined,
         toolsFile: join(dir, 'recipes/datadog.json'),
       });

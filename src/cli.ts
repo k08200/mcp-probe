@@ -199,6 +199,9 @@ program
   .option('-H, --header <header>', 'HTTP header for remote MCP servers, e.g. "Authorization: Bearer TOKEN"', collect, [])
   .option('--stderr-allow <pattern>', 'stderr regex to ignore when classifying startup failures', collect, [])
   .option('--stderr-fatal <pattern>', 'stderr regex to always treat as the startup failure reason', collect, [])
+  .option('--expect-tool <name>', 'tool name that must be present in tools/list', collect, [])
+  .option('--allow-tool <name>', 'tool name allowed in tools/list; when present, unlisted tools fail the catalog check', collect, [])
+  .option('--forbid-tool <name>', 'tool name that must not be present in tools/list', collect, [])
   .option('--github-summary', 'write GitHub Actions job summary and annotations')
   .option('--badge-file <path>', 'write shields.io endpoint JSON for README/status badges')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
@@ -214,6 +217,9 @@ program
       header: string[];
       stderrAllow: string[];
       stderrFatal: string[];
+      expectTool: string[];
+      allowTool: string[];
+      forbidTool: string[];
       githubSummary?: boolean;
       badgeFile?: string;
       probeTools?: boolean;
@@ -288,9 +294,22 @@ program
 
     const probeTools = opts.probeTools || !!opts.toolsFile;
     const toolsFile = opts.toolsFile;
+    const checkOptions = {
+      target,
+      serverArgs,
+      timeoutMs,
+      transport,
+      headers,
+      stderr,
+      expectedTools: opts.expectTool,
+      allowedTools: opts.allowTool,
+      forbiddenTools: opts.forbidTool,
+      probeTools,
+      toolsFile,
+    };
 
     if (opts.output === 'json') {
-      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, stderr, probeTools, toolsFile });
+      const report = await checkMcpServer(checkOptions);
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
       renderJson(report);
@@ -300,7 +319,7 @@ program
 
     const spinner = ora(`Checking ${target}`).start();
     try {
-      const report = await checkMcpServer({ target, serverArgs, timeoutMs, transport, headers, stderr, probeTools, toolsFile });
+      const report = await checkMcpServer(checkOptions);
       spinner.stop();
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);

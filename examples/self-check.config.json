@@ -4,6 +4,8 @@
     {
       "name": "fixture-stdio",
       "target": "./fixtures/stdio-mcp-server.js",
+      "expectedTools": ["echo", "auth_check", "db_query", "db_write"],
+      "forbiddenTools": ["drop_database"],
       "toolsFile": "./self-check.tools.json",
       "stderr": {
         "allow": ["^Warning:", "missing optional config"],

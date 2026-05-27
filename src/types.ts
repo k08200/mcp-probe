@@ -3,6 +3,7 @@ export type CheckStatus = 'pass' | 'fail' | 'warn';
 export type IssueCode =
   | 'NO_TOOLS'
   | 'TOOL_SCHEMA_INVALID'
+  | 'TOOL_CATALOG_MISMATCH'
   | 'TOOL_CALL_AUTH'
   | 'TOOL_CALL_FAILED'
   | 'TOOL_CALL_TIMEOUT'
@@ -112,6 +113,9 @@ export type CheckOptions = {
   transport?: TransportMode;
   headers?: Record<string, string>;
   stderr?: StderrRules;
+  expectedTools?: string[];
+  allowedTools?: string[];
+  forbiddenTools?: string[];
   probeTools?: boolean;
   toolsFile?: string;
 };
@@ -124,6 +128,9 @@ export type ConfigServer = {
   transport?: TransportMode;
   headers?: Record<string, string>;
   stderr?: StderrRules;
+  expectedTools?: string[];
+  allowedTools?: string[];
+  forbiddenTools?: string[];
   probeTools?: boolean;
   toolsFile?: string;
 };

@@ -15,6 +15,12 @@ function rejectUnknownKeys(value: Record<string, unknown>, allowed: readonly str
   }
 }
 
+function validateStringArray(value: unknown, label: string): void {
+  if (value !== undefined && (!Array.isArray(value) || !value.every((item) => typeof item === 'string'))) {
+    throw new Error(`Invalid config: ${label} must be a string array`);
+  }
+}
+
 function validateServer(server: unknown, index: number): ConfigServer {
   if (!isObject(server)) {
     throw new Error(`Invalid config: servers[${index}] must be an object`);
@@ -22,7 +28,7 @@ function validateServer(server: unknown, index: number): ConfigServer {
 
   rejectUnknownKeys(
     server,
-    ['name', 'target', 'serverArgs', 'timeoutMs', 'transport', 'headers', 'stderr', 'probeTools', 'toolsFile'],
+    ['name', 'target', 'serverArgs', 'timeoutMs', 'transport', 'headers', 'stderr', 'expectedTools', 'allowedTools', 'forbiddenTools', 'probeTools', 'toolsFile'],
     `servers[${index}]`
   );
 
@@ -74,6 +80,9 @@ function validateServer(server: unknown, index: number): ConfigServer {
   if (server.probeTools !== undefined && typeof server.probeTools !== 'boolean') {
     throw new Error(`Invalid config: servers[${index}].probeTools must be a boolean`);
   }
+  validateStringArray(server.expectedTools, `servers[${index}].expectedTools`);
+  validateStringArray(server.allowedTools, `servers[${index}].allowedTools`);
+  validateStringArray(server.forbiddenTools, `servers[${index}].forbiddenTools`);
   if (server.toolsFile !== undefined && typeof server.toolsFile !== 'string') {
     throw new Error(`Invalid config: servers[${index}].toolsFile must be a string`);
   }
@@ -160,6 +169,9 @@ export async function checkConfigFile(configFile: string, defaultTimeoutMs = 100
       transport: server.transport,
       headers: expandHeaders(server.headers),
       stderr: server.stderr,
+      expectedTools: server.expectedTools,
+      allowedTools: server.allowedTools,
+      forbiddenTools: server.forbiddenTools,
       probeTools: server.probeTools,
       toolsFile: resolveConfigPath(configFile, server.toolsFile),
     };

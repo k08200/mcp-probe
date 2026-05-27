@@ -82,6 +82,14 @@ export function issueForCheck(check: CheckItem): Issue | undefined {
     };
   }
 
+  if (check.name === 'Tool catalog policy') {
+    return {
+      code: 'TOOL_CATALOG_MISMATCH',
+      hint: 'The discovered tool catalog does not match the configured policy. Check expectedTools, allowedTools, and forbiddenTools in mcp-probe.config.json.',
+      docsUrl: DOCS.config,
+    };
+  }
+
   if (check.name === 'Tool sidecar') {
     if (message.includes('cannot read')) {
       return {
