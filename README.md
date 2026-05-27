@@ -150,6 +150,7 @@ It validates:
 - Node.js version
 - config file shape
 - sidecar file shape
+- `expectedTools` sidecar sample coverage
 - GitHub Actions workflow presence and recommended flags
 - whether mcp-probe is actually executed from a workflow `run:` step
 

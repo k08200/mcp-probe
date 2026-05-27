@@ -70,6 +70,7 @@ describe('runDoctor', () => {
           {
             name: 'fixture',
             target: './server.js',
+            expectedTools: ['echo'],
             toolsFile: '.mcp-probe.json',
           },
         ],
@@ -90,7 +91,7 @@ steps:
 
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
       expect(report.overallStatus).toBe('pass');
-      expect(report.checks.map((check) => check.status)).toEqual(['pass', 'pass', 'pass', 'pass']);
+      expect(report.checks.map((check) => check.status)).toEqual(['pass', 'pass', 'pass', 'pass', 'pass']);
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
@@ -381,6 +382,80 @@ steps:
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
       expect(report.overallStatus).toBe('fail');
       expect(report.checks.find((check) => check.name.includes('.mcp-probe.json'))?.message).toContain('echo contains unknown field expectations');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when expectedTools are configured without a toolsFile', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            expectedTools: ['query'],
+          },
+        ],
+      }));
+      mkdirSync(join('.github', 'workflows'), { recursive: true });
+      writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
+steps:
+  - uses: actions/checkout@v6
+  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+`);
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json' });
+      const coverage = report.checks.find((check) => check.name === 'Expected tool coverage fixture');
+      expect(report.overallStatus).toBe('fail');
+      expect(coverage?.status).toBe('fail');
+      expect(coverage?.message).toContain('expectedTools configured but no toolsFile is set');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when expectedTools are missing sidecar samples', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            expectedTools: ['query', 'search'],
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+      writeFileSync('.mcp-probe.json', JSON.stringify({
+        tools: {
+          query: {
+            input: { sql: 'select 1' },
+          },
+        },
+      }));
+      mkdirSync(join('.github', 'workflows'), { recursive: true });
+      writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
+steps:
+  - uses: actions/checkout@v6
+  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+`);
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json' });
+      const coverage = report.checks.find((check) => check.name === 'Expected tool coverage fixture');
+      expect(report.overallStatus).toBe('fail');
+      expect(coverage?.status).toBe('fail');
+      expect(coverage?.message).toContain('missing sidecar samples for expected tools: search');
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });

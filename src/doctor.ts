@@ -79,6 +79,42 @@ function validateSidecar(path: string): DoctorCheck {
   }
 }
 
+function validateExpectedToolCoverage(configFile: string, server: ConfigServer): DoctorCheck | undefined {
+  if (!server.expectedTools?.length) return undefined;
+
+  const name = `Expected tool coverage ${server.name}`;
+  if (!server.toolsFile) {
+    return {
+      name,
+      status: 'fail',
+      message: `expectedTools configured but no toolsFile is set; add sidecar samples for ${server.expectedTools.join(', ')}`,
+    };
+  }
+
+  const sidecarPath = resolveConfigPath(configFile, server.toolsFile);
+  try {
+    const sidecar = readToolSidecar(sidecarPath);
+    const sampled = new Set(Object.keys(sidecar.tools));
+    const missing = server.expectedTools.filter((tool) => !sampled.has(tool));
+    if (missing.length > 0) {
+      return {
+        name,
+        status: 'fail',
+        message: `missing sidecar samples for expected tools: ${missing.join(', ')}`,
+      };
+    }
+
+    return {
+      name,
+      status: 'pass',
+      message: 'All expected tools have sidecar sample inputs',
+    };
+  } catch {
+    // validateSidecar reports the parse or read failure; avoid duplicate noise.
+    return undefined;
+  }
+}
+
 function uncommentWorkflowLine(line: string): string {
   const trimmed = line.trimStart();
   if (trimmed.startsWith('#')) return '';
@@ -343,6 +379,11 @@ export function runDoctor(options: DoctorOptions): DoctorReport {
       for (const toolsFile of toolsFiles) {
         checks.push(validateSidecar(resolveConfigPath(options.configFile, toolsFile)));
       }
+    }
+
+    for (const server of config.servers) {
+      const coverage = validateExpectedToolCoverage(options.configFile, server);
+      if (coverage) checks.push(coverage);
     }
   } catch (err) {
     checks.push({
