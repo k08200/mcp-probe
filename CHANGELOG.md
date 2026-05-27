@@ -5,6 +5,7 @@
 ### Added
 
 - Tool catalog policy checks with `expectedTools`, `allowedTools`, and `forbiddenTools`.
+- Doctor now verifies that `mcp-probe` is executed from a GitHub Actions `run:` step, not merely mentioned in comments or workflow metadata.
 - `mcp-probe doctor --fix` now detects incomplete existing mcp-probe workflows and reports them without rewriting by default.
 - Doctor sidecar validation now checks expectation field types, including `status`, `not_error_code`, `requiredFields`, `maxRows`, `errorCode`, `contains`, and `notContains`.
 - Doctor warning messages now include concrete next-command suggestions for common setup issues.

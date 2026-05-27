@@ -139,6 +139,47 @@ steps:
     }
   });
 
+  it('warns when workflow only mentions mcp-probe outside a run step', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+      writeFileSync('.mcp-probe.json', JSON.stringify({
+        tools: {
+          echo: {
+            input: { message: 'hello' },
+          },
+        },
+      }));
+      mkdirSync(join('.github', 'workflows'), { recursive: true });
+      writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
+steps:
+  - uses: actions/checkout@v6
+  # mcp-probe --config mcp-probe.config.json --github-summary
+  - run: echo "tests pass"
+`);
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json' });
+      const workflow = report.checks.find((check) => check.name === 'GitHub Actions workflow');
+      expect(report.overallStatus).toBe('warn');
+      expect(workflow?.status).toBe('warn');
+      expect(workflow?.message).toContain('No workflow run step executes mcp-probe');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('does not rewrite an existing incomplete mcp-probe workflow without force', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
     const cwd = process.cwd();

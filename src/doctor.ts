@@ -79,6 +79,47 @@ function validateSidecar(path: string): DoctorCheck {
   }
 }
 
+function uncommentWorkflowLine(line: string): string {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith('#')) return '';
+  const commentIndex = line.indexOf('#');
+  return commentIndex === -1 ? line : line.slice(0, commentIndex);
+}
+
+function workflowRunCommands(content: string): string[] {
+  const lines = content.split(/\r?\n/);
+  const commands: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = uncommentWorkflowLine(lines[index]);
+    const inlineRun = line.match(/^\s*-\s*run:\s*(.+)$/) ?? line.match(/^\s*run:\s*(.+)$/);
+    if (!inlineRun) continue;
+
+    const value = inlineRun[1].trim();
+    if (value !== '|' && value !== '>') {
+      commands.push(value);
+      continue;
+    }
+
+    const blockIndent = line.search(/\S/);
+    const blockLines: string[] = [];
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const blockLine = uncommentWorkflowLine(lines[cursor]);
+      if (!blockLine.trim()) {
+        blockLines.push(blockLine);
+        continue;
+      }
+      const indent = blockLine.search(/\S/);
+      if (indent <= blockIndent) break;
+      blockLines.push(blockLine.trim());
+      index = cursor;
+    }
+    commands.push(blockLines.join('\n'));
+  }
+
+  return commands;
+}
+
 function workflowStatus(configFile: string): DoctorCheck {
   const dir = '.github/workflows';
   if (!existsSync(dir)) {
@@ -94,27 +135,29 @@ function workflowStatus(configFile: string): DoctorCheck {
     .map((file) => join(dir, file));
   const matching = workflowFiles
     .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
-    .filter(({ content }) => content.includes('mcp-probe'));
+    .map(({ file, content }) => ({ file, content, commands: workflowRunCommands(content) }))
+    .filter(({ commands }) => commands.some((command) => command.includes('mcp-probe')));
 
   if (matching.length === 0) {
     return {
       name: 'GitHub Actions workflow',
       status: 'warn',
-      message: 'No workflow file mentions mcp-probe. Next: run "mcp-probe doctor --fix".',
+      message: 'No workflow run step executes mcp-probe. Next: run "mcp-probe doctor --fix".',
     };
   }
 
-  const combined = matching.map(({ content }) => content).join('\n');
+  const combinedWorkflow = matching.map(({ content }) => content).join('\n');
+  const combinedCommands = matching.flatMap(({ commands }) => commands).join('\n');
   const missing: string[] = [];
   const normalizedConfigFile = configFile.replaceAll('\\', '/');
 
-  if (!combined.includes('actions/checkout@v6')) {
+  if (!combinedWorkflow.includes('actions/checkout@v6')) {
     missing.push('actions/checkout@v6');
   }
-  if (!/--config(?:=|\s+)/.test(combined) || !combined.replaceAll('\\', '/').includes(normalizedConfigFile)) {
+  if (!/--config(?:=|\s+)/.test(combinedCommands) || !combinedCommands.replaceAll('\\', '/').includes(normalizedConfigFile)) {
     missing.push(`--config ${configFile}`);
   }
-  if (!combined.includes('--github-summary')) {
+  if (!combinedCommands.includes('--github-summary')) {
     missing.push('--github-summary');
   }
 
@@ -122,12 +165,12 @@ function workflowStatus(configFile: string): DoctorCheck {
     ? {
         name: 'GitHub Actions workflow',
         status: 'pass',
-        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} mentioning mcp-probe`,
+        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with an mcp-probe run step`,
       }
     : {
         name: 'GitHub Actions workflow',
         status: 'warn',
-        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} mentioning mcp-probe, but missing ${missing.join(', ')}. Next: run "mcp-probe doctor --fix".`,
+        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with an mcp-probe run step, but missing ${missing.join(', ')}. Next: run "mcp-probe doctor --fix".`,
       };
 }
 
@@ -175,7 +218,7 @@ function workflowFiles(): Array<{ file: string; content: string }> {
 }
 
 function matchingWorkflowFiles(): Array<{ file: string; content: string }> {
-  return workflowFiles().filter(({ content }) => content.includes('mcp-probe'));
+  return workflowFiles().filter(({ content }) => workflowRunCommands(content).some((command) => command.includes('mcp-probe')));
 }
 
 function buildSidecar(): string {
@@ -185,7 +228,8 @@ function buildSidecar(): string {
 function fixWorkflow(configFile: string, workflowFile: string, force: boolean): DoctorCheck {
   if (existsSync(workflowFile)) {
     const content = readFileSync(workflowFile, 'utf8');
-    if (content.includes('mcp-probe') && !force) {
+    const hasProbeRunStep = workflowRunCommands(content).some((command) => command.includes('mcp-probe'));
+    if (hasProbeRunStep && !force) {
       return {
         name: `Fix ${workflowFile}`,
         status: 'warn',
