@@ -115,6 +115,33 @@ export function buildToolsFile(discoveredTools?: ToolInfo[]): unknown {
   };
 }
 
+export function buildToolsFileFromNames(toolNames: string[]): unknown {
+  const unique = [...new Set(toolNames)].filter(Boolean);
+  const tools = unique.length > 0
+    ? Object.fromEntries(unique.map((name) => [
+        name,
+        {
+          input: {},
+          expect: {
+            not_error_code: [401, 403],
+          },
+        },
+      ]))
+    : {
+        replace_with_tool_name: {
+          input: {},
+          expect: {
+            not_error_code: [401, 403],
+          },
+        },
+      };
+
+  return {
+    $schema: SIDECAR_SCHEMA_URL,
+    tools,
+  };
+}
+
 export function buildWorkflow(configFile: string): string {
   return `name: MCP Probe
 

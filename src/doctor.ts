@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, isAbsolute, join, resolve } from 'path';
 import { loadConfig } from './config.js';
-import { buildConfig, buildToolsFile, buildWorkflow, json } from './scaffold.js';
+import { buildConfig, buildToolsFile, buildToolsFileFromNames, buildWorkflow, json } from './scaffold.js';
 import { readToolSidecar } from './sidecar.js';
 import type { CheckStatus, ConfigServer } from './types.js';
 
@@ -214,6 +214,16 @@ function uniqueToolsFiles(servers: ConfigServer[]): string[] {
   return [...new Set(servers.map((server) => server.toolsFile).filter((value): value is string => Boolean(value)))];
 }
 
+function expectedToolsForToolsFile(servers: ConfigServer[], toolsFile: string): string[] {
+  return [
+    ...new Set(
+      servers
+        .filter((server) => server.toolsFile === toolsFile)
+        .flatMap((server) => server.expectedTools ?? []),
+    ),
+  ];
+}
+
 function resolveConfigPath(configFile: string, maybeRelative: string): string {
   if (isAbsolute(maybeRelative)) return maybeRelative;
   return resolve(dirname(configFile), maybeRelative);
@@ -257,8 +267,8 @@ function matchingWorkflowFiles(): Array<{ file: string; content: string }> {
   return workflowFiles().filter(({ content }) => workflowRunCommands(content).some((command) => command.includes('mcp-probe')));
 }
 
-function buildSidecar(): string {
-  return json(buildToolsFile());
+function buildSidecar(toolNames: string[] = []): string {
+  return json(toolNames.length > 0 ? buildToolsFileFromNames(toolNames) : buildToolsFile());
 }
 
 function fixWorkflow(configFile: string, workflowFile: string, force: boolean): DoctorCheck {
@@ -326,7 +336,11 @@ function applyFixes(options: DoctorOptions): DoctorCheck[] {
       for (const configuredToolsFile of uniqueToolsFiles(config.servers)) {
         const sidecarPath = resolveConfigPath(options.configFile, configuredToolsFile);
         if (!existsSync(sidecarPath)) {
-          checks.push(writeIfAllowed(sidecarPath, buildSidecar(), force));
+          checks.push(writeIfAllowed(
+            sidecarPath,
+            buildSidecar(expectedToolsForToolsFile(config.servers, configuredToolsFile)),
+            force,
+          ));
         }
       }
     } catch {

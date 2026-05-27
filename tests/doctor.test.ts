@@ -253,6 +253,37 @@ steps:
     }
   });
 
+  it('fixes missing sidecar files with configured expected tool names', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            expectedTools: ['query', 'search'],
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json', fix: true });
+      expect(report.overallStatus).toBe('pass');
+
+      const sidecar = JSON.parse(readFileSync('.mcp-probe.json', 'utf8'));
+      expect(sidecar.tools.query.input).toEqual({});
+      expect(sidecar.tools.search.input).toEqual({});
+      expect(sidecar.tools.replace_with_tool_name).toBeUndefined();
+      expect(report.checks.find((check) => check.name === 'Expected tool coverage fixture')?.status).toBe('pass');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('resolves sidecar paths relative to the config file', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
     const nested = join(dir, 'ci');

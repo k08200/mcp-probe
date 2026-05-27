@@ -12,6 +12,7 @@
 - Doctor sidecar validation now checks expectation field types, including `status`, `not_error_code`, `requiredFields`, `maxRows`, `errorCode`, `contains`, and `notContains`.
 - Doctor warning messages now include concrete next-command suggestions for common setup issues.
 - The project CI now dogfoods `mcp-probe doctor` on every Node.js test matrix run.
+- `doctor --fix` now scaffolds missing sidecar files from configured `expectedTools` when available.
 
 ### Changed
 

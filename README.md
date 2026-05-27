@@ -155,6 +155,7 @@ It validates:
 - whether mcp-probe is actually executed from a workflow `run:` step
 
 `doctor --fix` creates missing files. It does **not** rewrite existing workflows unless `--force` is explicitly passed.
+When a config already declares `expectedTools`, missing sidecar files are scaffolded with those tool names instead of a generic placeholder.
 
 ```bash
 mcp-probe doctor --fix --target @your-org/your-mcp-server
