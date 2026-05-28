@@ -196,6 +196,9 @@ function workflowStatus(configFile: string): DoctorCheck {
   if (!combinedCommands.includes('--github-summary')) {
     missing.push('--github-summary');
   }
+  if (!combinedCommands.includes('--fail-on-warn')) {
+    missing.push('--fail-on-warn');
+  }
 
   return missing.length === 0
     ? {

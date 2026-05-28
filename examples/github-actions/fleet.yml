@@ -22,4 +22,5 @@ jobs:
           npx @k08200/mcp-probe \
             --config mcp-probe.config.json \
             --github-summary \
+            --fail-on-warn \
             --badge-file mcp-probe-badge.json

@@ -9,6 +9,7 @@ import { renderGithubActions } from './reporters/github.js';
 import { writeBadgeFile } from './reporters/badge.js';
 import { initProject } from './init.js';
 import { runDoctor } from './doctor.js';
+import { exitCodeForStatus } from './exit-code.js';
 import { VERSION } from './version.js';
 import type { TransportMode } from './types.js';
 
@@ -130,7 +131,7 @@ program
         ? `Next: review ${opts.sidecarFile} and replace schema-minimum values with safe real samples.`
         : `Next: edit ${opts.sidecarFile} with real tool names and safe sample inputs.`;
       console.log(next);
-      console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary`);
+      console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary --fail-on-warn`);
     } catch (err) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
@@ -146,6 +147,7 @@ program
   .option('--tools-file <path>', 'sidecar tools file to create when --fix creates a missing config file', '.mcp-probe.json')
   .option('--workflow-file <path>', 'GitHub Actions workflow file to create when --fix is enabled', '.github/workflows/mcp-probe.yml')
   .option('--force', 'overwrite existing workflow/config/sidecar files when fixing')
+  .option('--fail-on-warn', 'exit non-zero when doctor reports warnings')
   .option('-o, --output <format>', 'output format: terminal | json', 'terminal')
   .action((opts: {
     configFile?: string;
@@ -155,6 +157,7 @@ program
     workflowFile?: string;
     force?: boolean;
     output?: string;
+    failOnWarn?: boolean;
   }) => {
     const configFile = opts.configFile ?? 'mcp-probe.config.json';
     const output = argValue('--output', '-o') ?? opts.output ?? 'terminal';
@@ -186,7 +189,7 @@ program
       console.log(`  ${report.overallStatus.toUpperCase()}`);
       console.log('');
     }
-    process.exit(report.overallStatus === 'fail' ? 1 : 0);
+    process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
   });
 
 program
@@ -204,6 +207,7 @@ program
   .option('--forbid-tool <name>', 'tool name that must not be present in tools/list', collect, [])
   .option('--github-summary', 'write GitHub Actions job summary and annotations')
   .option('--badge-file <path>', 'write shields.io endpoint JSON for README/status badges')
+  .option('--fail-on-warn', 'exit non-zero when the report contains warnings')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
   .option('--tools-file <path>', 'path to sidecar JSON with declared tool inputs (implies --probe-tools)')
   .action(async (
@@ -222,6 +226,7 @@ program
       forbidTool: string[];
       githubSummary?: boolean;
       badgeFile?: string;
+      failOnWarn?: boolean;
       probeTools?: boolean;
       toolsFile?: string;
     }
@@ -263,7 +268,7 @@ program
           if (opts.githubSummary) renderGithubActions(report);
           if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
           renderJson(report);
-          process.exit(report.overallStatus === 'fail' ? 1 : 0);
+          process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
         } catch (err) {
           console.error(err instanceof Error ? err.message : String(err));
           process.exit(1);
@@ -278,7 +283,7 @@ program
         if (opts.githubSummary) renderGithubActions(report);
         if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
         renderBatchTerminal(report);
-        process.exit(report.overallStatus === 'fail' ? 1 : 0);
+        process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
       } catch (err) {
         spinner.fail('Unexpected error');
         console.error(err instanceof Error ? err.message : String(err));
@@ -313,7 +318,7 @@ program
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
       renderJson(report);
-      process.exit(report.overallStatus === 'fail' ? 1 : 0);
+      process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
       return;
     }
 
@@ -324,7 +329,7 @@ program
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
       renderTerminal(report);
-      process.exit(report.overallStatus === 'fail' ? 1 : 0);
+      process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
     } catch (err) {
       spinner.fail('Unexpected error');
       console.error(err instanceof Error ? err.message : String(err));

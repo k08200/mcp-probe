@@ -163,6 +163,7 @@ jobs:
           npx @k08200/mcp-probe@latest \\
             --config ${configFile} \\
             --github-summary \\
+            --fail-on-warn \\
             --badge-file mcp-probe-badge.json
 `;
 }

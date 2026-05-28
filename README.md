@@ -35,7 +35,7 @@ npx @k08200/mcp-probe@latest init \
 Then run:
 
 ```bash
-npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary
+npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary --fail-on-warn
 ```
 
 ## Commands
@@ -61,6 +61,9 @@ mcp-probe @scope/server --tools-file .mcp-probe.json
 
 # Preflight local mcp-probe setup
 mcp-probe doctor
+
+# Make warnings fail CI too
+mcp-probe --config mcp-probe.config.json --fail-on-warn
 
 # Create missing config/sidecar/workflow files
 mcp-probe doctor --fix --target @scope/server
@@ -97,7 +100,7 @@ When `expectedTools` and a `toolsFile` are both set, every expected tool must al
 Run:
 
 ```bash
-mcp-probe --config mcp-probe.config.json --github-summary
+mcp-probe --config mcp-probe.config.json --github-summary --fail-on-warn
 ```
 
 ## Sidecar Inputs
@@ -151,7 +154,7 @@ It validates:
 - config file shape
 - sidecar file shape
 - `expectedTools` sidecar sample coverage
-- GitHub Actions workflow presence and recommended flags
+- GitHub Actions workflow presence and recommended flags (`--github-summary`, `--fail-on-warn`)
 - whether mcp-probe is actually executed from a workflow `run:` step
 
 `doctor --fix` creates missing files. It does **not** rewrite existing workflows unless `--force` is explicitly passed.
@@ -179,17 +182,18 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - run: npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary
+      - run: npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary --fail-on-warn
 ```
 
 ## Exit Codes
 
 | Code | Meaning |
 |---|---|
-| `0` | Passed, or warnings only |
+| `0` | Passed, or warnings only unless `--fail-on-warn` is set |
 | `1` | One or more checks failed |
 
 Warnings do not fail CI by default. They are intended for degraded states such as OAuth handoff or permission issues that should be visible but may not block every deploy.
+Use `--fail-on-warn` for production readiness gates where auth handoff, permission warnings, or incomplete receipts should block the workflow.
 
 ## Development
 

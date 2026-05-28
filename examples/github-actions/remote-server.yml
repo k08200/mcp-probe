@@ -21,4 +21,5 @@ jobs:
             --header "Authorization: Bearer $MCP_TOKEN" \
             --tools-file .mcp-probe.json \
             --github-summary \
+            --fail-on-warn \
             --badge-file mcp-probe-badge.json

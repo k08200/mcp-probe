@@ -18,4 +18,5 @@ jobs:
           npx @k08200/mcp-probe @modelcontextprotocol/server-memory \
             --probe-tools \
             --github-summary \
+            --fail-on-warn \
             --badge-file mcp-probe-badge.json

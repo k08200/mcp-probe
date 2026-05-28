@@ -37,6 +37,7 @@ describe('runDoctor', () => {
       expect(existsSync('.mcp-probe.json')).toBe(true);
       expect(existsSync(join('.github', 'workflows', 'mcp-probe.yml'))).toBe(true);
       expect(readFileSync(join('.github', 'workflows', 'mcp-probe.yml'), 'utf8')).toContain('--github-summary');
+      expect(readFileSync(join('.github', 'workflows', 'mcp-probe.yml'), 'utf8')).toContain('--fail-on-warn');
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
@@ -86,7 +87,7 @@ describe('runDoctor', () => {
       writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
 steps:
   - uses: actions/checkout@v6
-  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary --fail-on-warn
 `);
 
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
@@ -134,6 +135,7 @@ steps:
       expect(workflow?.message).toContain('actions/checkout@v6');
       expect(workflow?.message).toContain('--config mcp-probe.config.json');
       expect(workflow?.message).toContain('--github-summary');
+      expect(workflow?.message).toContain('--fail-on-warn');
     } finally {
       process.chdir(cwd);
       rmSync(dir, { recursive: true, force: true });
@@ -438,7 +440,7 @@ steps:
       writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
 steps:
   - uses: actions/checkout@v6
-  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary --fail-on-warn
 `);
 
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
@@ -479,7 +481,7 @@ steps:
       writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
 steps:
   - uses: actions/checkout@v6
-  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary
+  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary --fail-on-warn
 `);
 
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
