@@ -26,7 +26,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: node dist/cli.js doctor --config-file examples/self-check.config.json --output json
+      - run: node dist/cli.js doctor --config-file examples/self-check.strict.config.json --output json
 
   smoke-test:
     runs-on: ubuntu-latest
@@ -41,6 +41,9 @@ jobs:
       - name: Self-check batch mode
         run: node dist/cli.js --config examples/self-check.config.json --github-summary --badge-file mcp-probe-badge.json
         timeout-minutes: 2
+      - name: Self-check strict CI gate
+        run: node dist/cli.js --config examples/self-check.strict.config.json --github-summary --fail-on-warn --badge-file mcp-probe-strict-badge.json
+        timeout-minutes: 2
       - name: Self-check contract assertion failure
         run: node scripts/verify-contract-failure.mjs
         timeout-minutes: 2
@@ -52,6 +55,7 @@ jobs:
           npm install "$PACK_DIR"/k08200-mcp-probe-*.tgz --prefix "$INSTALL_DIR" --no-audit --no-fund
           "$INSTALL_DIR"/node_modules/.bin/mcp-probe --version
           "$INSTALL_DIR"/node_modules/.bin/mcp-probe \
-            --config "$INSTALL_DIR"/node_modules/@k08200/mcp-probe/examples/self-check.config.json \
-            --output json
+            --config "$INSTALL_DIR"/node_modules/@k08200/mcp-probe/examples/self-check.strict.config.json \
+            --output json \
+            --fail-on-warn
         timeout-minutes: 3

@@ -156,6 +156,29 @@ function workflowRunCommands(content: string): string[] {
   return commands;
 }
 
+function isMcpProbeRunCommand(command: string): boolean {
+  return (
+    /(?:^|\s)npx\s+@k08200\/mcp-probe(?:@latest)?(?:\s|\\|$)/.test(command) ||
+    /(?:^|\s)npx\s+mcp-probe(?:\s|\\|$)/.test(command) ||
+    /(?:^|\s)mcp-probe(?:\s|\\|$)/.test(command) ||
+    /(?:^|\s)node\s+dist\/cli\.js(?:\s|\\|$)/.test(command)
+  );
+}
+
+function commandRunsConfig(command: string, configFile: string): boolean {
+  const normalizedCommand = command.replaceAll('\\', '/');
+  const normalizedConfigFile = configFile.replaceAll('\\', '/');
+  return /--config(?:=|\s+)/.test(command) && normalizedCommand.includes(normalizedConfigFile);
+}
+
+function commandHasRequiredCiFlags(command: string, configFile: string): boolean {
+  return (
+    commandRunsConfig(command, configFile) &&
+    command.includes('--github-summary') &&
+    command.includes('--fail-on-warn')
+  );
+}
+
 function workflowStatus(configFile: string): DoctorCheck {
   const dir = '.github/workflows';
   if (!existsSync(dir)) {
@@ -172,7 +195,7 @@ function workflowStatus(configFile: string): DoctorCheck {
   const matching = workflowFiles
     .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
     .map(({ file, content }) => ({ file, content, commands: workflowRunCommands(content) }))
-    .filter(({ commands }) => commands.some((command) => command.includes('mcp-probe')));
+    .filter(({ commands }) => commands.some(isMcpProbeRunCommand));
 
   if (matching.length === 0) {
     return {
@@ -183,28 +206,38 @@ function workflowStatus(configFile: string): DoctorCheck {
   }
 
   const combinedWorkflow = matching.map(({ content }) => content).join('\n');
-  const combinedCommands = matching.flatMap(({ commands }) => commands).join('\n');
+  const mcpCommands = matching.flatMap(({ commands }) => commands.filter(isMcpProbeRunCommand));
   const missing: string[] = [];
-  const normalizedConfigFile = configFile.replaceAll('\\', '/');
 
   if (!combinedWorkflow.includes('actions/checkout@v6')) {
     missing.push('actions/checkout@v6');
   }
-  if (!/--config(?:=|\s+)/.test(combinedCommands) || !combinedCommands.replaceAll('\\', '/').includes(normalizedConfigFile)) {
+  if (!mcpCommands.some((command) => commandRunsConfig(command, configFile))) {
     missing.push(`--config ${configFile}`);
   }
-  if (!combinedCommands.includes('--github-summary')) {
+  if (!mcpCommands.some((command) => command.includes('--github-summary'))) {
     missing.push('--github-summary');
   }
-  if (!combinedCommands.includes('--fail-on-warn')) {
+  if (!mcpCommands.some((command) => command.includes('--fail-on-warn'))) {
     missing.push('--fail-on-warn');
+  }
+  const hasCompleteProbeCommand = mcpCommands.some((command) => commandHasRequiredCiFlags(command, configFile));
+
+  if (missing.length === 0 && !hasCompleteProbeCommand) {
+    return {
+      name: 'GitHub Actions workflow',
+      status: 'warn',
+      message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with mcp-probe run steps, but no single run step includes --config ${configFile}, --github-summary, and --fail-on-warn. Next: run "mcp-probe doctor --fix".`,
+    };
   }
 
   return missing.length === 0
     ? {
         name: 'GitHub Actions workflow',
-        status: 'pass',
-        message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with an mcp-probe run step`,
+        status: hasCompleteProbeCommand ? 'pass' : 'warn',
+        message: hasCompleteProbeCommand
+          ? `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with a complete mcp-probe run step`
+          : `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with an mcp-probe run step`,
       }
     : {
         name: 'GitHub Actions workflow',

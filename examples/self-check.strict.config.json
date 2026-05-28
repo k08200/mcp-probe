@@ -1,0 +1,16 @@
+{
+  "timeoutMs": 10000,
+  "servers": [
+    {
+      "name": "fixture-stdio-strict",
+      "target": "./fixtures/stdio-mcp-server.js",
+      "expectedTools": ["echo", "db_query", "db_write"],
+      "forbiddenTools": ["drop_database"],
+      "toolsFile": "./self-check.strict.tools.json",
+      "stderr": {
+        "allow": ["^Warning:", "missing optional config"],
+        "fatal": ["panic", "FATAL"]
+      }
+    }
+  ]
+}

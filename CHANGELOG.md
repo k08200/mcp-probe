@@ -14,6 +14,8 @@
 - The project CI now dogfoods `mcp-probe doctor` on every Node.js test matrix run.
 - `doctor --fix` now scaffolds missing sidecar files from configured `expectedTools` when available.
 - `--fail-on-warn` for CI workflows that should treat warnings as blocking readiness failures.
+- Doctor workflow checks now require the CI flags to appear on the same actual mcp-probe run step, avoiding false receipts from split commands or filenames.
+- Added a strict self-check fixture used by the project CI to dogfood `--fail-on-warn` without relying on the warning fixture.
 
 ### Changed
 
