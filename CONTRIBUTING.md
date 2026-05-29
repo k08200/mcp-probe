@@ -27,6 +27,12 @@ npm run typecheck                                     # type check only
 
 Recipes live in `examples/recipes`. They should be safe to run in CI and must not require destructive tool calls.
 
+Open recipe requests:
+
+- Datadog: https://github.com/k08200/mcp-probe/issues/1
+- Supabase: https://github.com/k08200/mcp-probe/issues/2
+- Gmail: https://github.com/k08200/mcp-probe/issues/3
+
 1. Run the target server with `mcp-probe --output json`
 2. Pick read-only or harmless tools that exercise the real downstream call path
 3. Add a `*.tools.json` sidecar with realistic sample inputs

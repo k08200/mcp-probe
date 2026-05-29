@@ -17,6 +17,18 @@
 - contract assertions for result shape, row limits, stable error codes, and leak checks
 - GitHub Actions summaries and machine-readable JSON output
 
+## Looking For Real-World Recipes
+
+The core tool is useful only if it reflects real MCP failure modes. If you run MCP servers in agent workflows, recipe contributions are especially useful for:
+
+| Server | What to validate | Issue |
+|---|---|---|
+| Datadog | OAuth/scopes, logs/metrics read paths, auth handoff failures | [#1](https://github.com/k08200/mcp-probe/issues/1) |
+| Supabase | read-only roles, row limits, tenant/project scope, denied writes | [#2](https://github.com/k08200/mcp-probe/issues/2) |
+| Gmail | OAuth browser handoff, stable auth errors, no private email leaks | [#3](https://github.com/k08200/mcp-probe/issues/3) |
+
+Do not paste secrets. Recipes should use placeholders such as `${DATADOG_MCP_TOKEN}` and read-only sample calls.
+
 ## Quick Start
 
 ```bash
