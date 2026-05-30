@@ -50,6 +50,13 @@ jobs:
           test -s mcp-probe-strict.receipt.json
           node -e "const fs=require('fs'); for (const file of ['mcp-probe.receipt.json','mcp-probe-strict.receipt.json']) { const r=JSON.parse(fs.readFileSync(file,'utf8')); if (r.receiptType !== 'mcp-readiness') throw new Error(file); }"
         timeout-minutes: 2
+      - name: Upload MCP readiness receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-probe-receipts
+          path: |
+            mcp-probe.receipt.json
+            mcp-probe-strict.receipt.json
       - name: Self-check contract assertion failure
         run: node scripts/verify-contract-failure.mjs
         timeout-minutes: 2

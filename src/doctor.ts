@@ -175,7 +175,8 @@ function commandHasRequiredCiFlags(command: string, configFile: string): boolean
   return (
     commandRunsConfig(command, configFile) &&
     command.includes('--github-summary') &&
-    command.includes('--fail-on-warn')
+    command.includes('--fail-on-warn') &&
+    command.includes('--receipt-file')
   );
 }
 
@@ -221,13 +222,19 @@ function workflowStatus(configFile: string): DoctorCheck {
   if (!mcpCommands.some((command) => command.includes('--fail-on-warn'))) {
     missing.push('--fail-on-warn');
   }
+  if (!mcpCommands.some((command) => command.includes('--receipt-file'))) {
+    missing.push('--receipt-file mcp-probe.receipt.json');
+  }
+  if (!combinedWorkflow.includes('actions/upload-artifact@v4')) {
+    missing.push('actions/upload-artifact@v4');
+  }
   const hasCompleteProbeCommand = mcpCommands.some((command) => commandHasRequiredCiFlags(command, configFile));
 
   if (missing.length === 0 && !hasCompleteProbeCommand) {
     return {
       name: 'GitHub Actions workflow',
       status: 'warn',
-      message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with mcp-probe run steps, but no single run step includes --config ${configFile}, --github-summary, and --fail-on-warn. Next: run "mcp-probe doctor --fix".`,
+      message: `Found ${matching.length} workflow file${matching.length === 1 ? '' : 's'} with mcp-probe run steps, but no single run step includes --config ${configFile}, --github-summary, --fail-on-warn, and --receipt-file. Next: run "mcp-probe doctor --fix".`,
     };
   }
 

@@ -87,7 +87,11 @@ describe('runDoctor', () => {
       writeFileSync(join('.github', 'workflows', 'mcp-probe.yml'), `
 steps:
   - uses: actions/checkout@v6
-  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary --fail-on-warn
+  - run: npx @k08200/mcp-probe --config mcp-probe.config.json --github-summary --fail-on-warn --receipt-file mcp-probe.receipt.json
+  - uses: actions/upload-artifact@v4
+    with:
+      name: mcp-probe-receipt
+      path: mcp-probe.receipt.json
 `);
 
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });
@@ -250,7 +254,11 @@ steps:
 steps:
   - uses: actions/checkout@v6
   - run: npx @k08200/mcp-probe --config mcp-probe.config.json
-  - run: npx @k08200/mcp-probe ./server.js --github-summary --fail-on-warn
+  - run: npx @k08200/mcp-probe ./server.js --github-summary --fail-on-warn --receipt-file mcp-probe.receipt.json
+  - uses: actions/upload-artifact@v4
+    with:
+      name: mcp-probe-receipt
+      path: mcp-probe.receipt.json
 `);
 
       const report = runDoctor({ configFile: 'mcp-probe.config.json' });

@@ -9,6 +9,7 @@
 - Generated GitHub Actions workflows now upload `mcp-probe.receipt.json` as an artifact.
 - Example GitHub Actions workflows now persist receipt artifacts.
 - Project CI now dogfoods receipt generation and validates receipt artifacts.
+- `doctor` now warns when workflows do not generate receipt files or upload them as artifacts.
 
 ## 1.8.0
 

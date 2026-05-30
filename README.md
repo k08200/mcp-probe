@@ -170,7 +170,7 @@ It validates:
 - config file shape
 - sidecar file shape
 - `expectedTools` sidecar sample coverage
-- GitHub Actions workflow presence and recommended flags (`--github-summary`, `--fail-on-warn`)
+- GitHub Actions workflow presence, strict CI flags, receipt generation, and artifact upload
 - whether mcp-probe is actually executed from a workflow `run:` step
 
 `doctor --fix` creates missing files. It does **not** rewrite existing workflows unless `--force` is explicitly passed.
