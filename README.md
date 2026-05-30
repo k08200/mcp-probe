@@ -16,6 +16,7 @@
 - sidecar sample inputs for meaningful calls
 - contract assertions for result shape, row limits, stable error codes, and leak checks
 - GitHub Actions summaries and machine-readable JSON output
+- optional JSON receipt artifacts for independent CI evidence
 
 ## Looking For Real-World Recipes
 
@@ -64,6 +65,9 @@ mcp-probe https://mcp.example.com/mcp --header "Authorization: Bearer $TOKEN"
 
 # Batch-check from config
 mcp-probe --config mcp-probe.config.json
+
+# Persist an independent readiness receipt artifact
+mcp-probe --config mcp-probe.config.json --receipt-file mcp-probe.receipt.json
 
 # Call tools, not just tools/list
 mcp-probe @scope/server --probe-tools
@@ -194,7 +198,26 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - run: npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary --fail-on-warn
+      - run: |
+          npx @k08200/mcp-probe@latest \
+            --config mcp-probe.config.json \
+            --github-summary \
+            --fail-on-warn \
+            --receipt-file mcp-probe.receipt.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp-probe-receipt
+          path: mcp-probe.receipt.json
+```
+
+## Receipt Artifacts
+
+`--receipt-file` writes a redacted JSON artifact containing the observed handshake, tool catalog, dry-run calls, contract assertions, and final status.
+
+Use it when CI needs durable evidence of what actually happened, not just terminal output:
+
+```bash
+mcp-probe --config mcp-probe.config.json --receipt-file mcp-probe.receipt.json
 ```
 
 ## Exit Codes

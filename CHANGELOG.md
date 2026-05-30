@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.0
+
+### Added
+
+- `--receipt-file <path>` writes a redacted JSON readiness receipt artifact.
+- Receipt artifacts include the observed report in a stable envelope with `formatVersion`, generator metadata, timestamp, and `receiptType`.
+- Generated GitHub Actions workflows now upload `mcp-probe.receipt.json` as an artifact.
+- Example GitHub Actions workflows now persist receipt artifacts.
+- Project CI now dogfoods receipt generation and validates receipt artifacts.
+
 ## 1.8.0
 
 ### Added

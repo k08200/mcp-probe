@@ -39,10 +39,16 @@ jobs:
           cache: npm
       - run: npm ci && npm run build
       - name: Self-check batch mode
-        run: node dist/cli.js --config examples/self-check.config.json --github-summary --badge-file mcp-probe-badge.json
+        run: node dist/cli.js --config examples/self-check.config.json --github-summary --badge-file mcp-probe-badge.json --receipt-file mcp-probe.receipt.json
         timeout-minutes: 2
       - name: Self-check strict CI gate
-        run: node dist/cli.js --config examples/self-check.strict.config.json --github-summary --fail-on-warn --badge-file mcp-probe-strict-badge.json
+        run: node dist/cli.js --config examples/self-check.strict.config.json --github-summary --fail-on-warn --badge-file mcp-probe-strict-badge.json --receipt-file mcp-probe-strict.receipt.json
+        timeout-minutes: 2
+      - name: Verify receipt artifacts
+        run: |
+          test -s mcp-probe.receipt.json
+          test -s mcp-probe-strict.receipt.json
+          node -e "const fs=require('fs'); for (const file of ['mcp-probe.receipt.json','mcp-probe-strict.receipt.json']) { const r=JSON.parse(fs.readFileSync(file,'utf8')); if (r.receiptType !== 'mcp-readiness') throw new Error(file); }"
         timeout-minutes: 2
       - name: Self-check contract assertion failure
         run: node scripts/verify-contract-failure.mjs

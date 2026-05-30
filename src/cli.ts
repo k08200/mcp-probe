@@ -7,6 +7,7 @@ import { renderBatchTerminal, renderTerminal } from './reporters/terminal.js';
 import { renderJson } from './reporters/json-reporter.js';
 import { renderGithubActions } from './reporters/github.js';
 import { writeBadgeFile } from './reporters/badge.js';
+import { writeReceiptFile } from './reporters/receipt.js';
 import { initProject } from './init.js';
 import { runDoctor } from './doctor.js';
 import { exitCodeForStatus } from './exit-code.js';
@@ -131,7 +132,7 @@ program
         ? `Next: review ${opts.sidecarFile} and replace schema-minimum values with safe real samples.`
         : `Next: edit ${opts.sidecarFile} with real tool names and safe sample inputs.`;
       console.log(next);
-      console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary --fail-on-warn`);
+      console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary --fail-on-warn --receipt-file mcp-probe.receipt.json`);
     } catch (err) {
       console.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
@@ -207,6 +208,7 @@ program
   .option('--forbid-tool <name>', 'tool name that must not be present in tools/list', collect, [])
   .option('--github-summary', 'write GitHub Actions job summary and annotations')
   .option('--badge-file <path>', 'write shields.io endpoint JSON for README/status badges')
+  .option('--receipt-file <path>', 'write an independent JSON readiness receipt artifact')
   .option('--fail-on-warn', 'exit non-zero when the report contains warnings')
   .option('--probe-tools', 'call each tool to validate the full call path (auto-discovers .mcp-probe.json)')
   .option('--tools-file <path>', 'path to sidecar JSON with declared tool inputs (implies --probe-tools)')
@@ -226,6 +228,7 @@ program
       forbidTool: string[];
       githubSummary?: boolean;
       badgeFile?: string;
+      receiptFile?: string;
       failOnWarn?: boolean;
       probeTools?: boolean;
       toolsFile?: string;
@@ -267,6 +270,7 @@ program
           const report = await checkConfigFile(opts.config, timeoutMs);
           if (opts.githubSummary) renderGithubActions(report);
           if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
+          if (opts.receiptFile) writeReceiptFile(report, opts.receiptFile);
           renderJson(report);
           process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
         } catch (err) {
@@ -282,6 +286,7 @@ program
         spinner.stop();
         if (opts.githubSummary) renderGithubActions(report);
         if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
+        if (opts.receiptFile) writeReceiptFile(report, opts.receiptFile);
         renderBatchTerminal(report);
         process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
       } catch (err) {
@@ -317,6 +322,7 @@ program
       const report = await checkMcpServer(checkOptions);
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
+      if (opts.receiptFile) writeReceiptFile(report, opts.receiptFile);
       renderJson(report);
       process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
       return;
@@ -328,6 +334,7 @@ program
       spinner.stop();
       if (opts.githubSummary) renderGithubActions(report);
       if (opts.badgeFile) writeBadgeFile(report, opts.badgeFile);
+      if (opts.receiptFile) writeReceiptFile(report, opts.receiptFile);
       renderTerminal(report);
       process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
     } catch (err) {

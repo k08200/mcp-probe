@@ -164,6 +164,13 @@ jobs:
             --config ${configFile} \\
             --github-summary \\
             --fail-on-warn \\
-            --badge-file mcp-probe-badge.json
+            --badge-file mcp-probe-badge.json \\
+            --receipt-file mcp-probe.receipt.json
+
+      - name: Upload MCP readiness receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-probe-receipt
+          path: mcp-probe.receipt.json
 `;
 }

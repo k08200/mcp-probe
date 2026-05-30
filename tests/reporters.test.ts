@@ -5,6 +5,7 @@ import { join } from 'path';
 import { renderJson } from '../src/reporters/json-reporter.js';
 import { buildGithubAnnotations, buildGithubSummary } from '../src/reporters/github.js';
 import { buildBadge, writeBadgeFile } from '../src/reporters/badge.js';
+import { buildReceipt, writeReceiptFile } from '../src/reporters/receipt.js';
 import type { BatchReport, CheckReport } from '../src/types.js';
 
 const makeReport = (overrides: Partial<CheckReport> = {}): CheckReport => ({
@@ -185,6 +186,45 @@ describe('badge reporter', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('receipt reporter', () => {
+  it('wraps reports in a receipt envelope', () => {
+    const receipt = buildReceipt(makeReport());
+
+    expect(receipt.formatVersion).toBe(1);
+    expect(receipt.generatedBy.name).toBe('mcp-probe');
+    expect(receipt.receiptType).toBe('mcp-readiness');
+    expect(receipt.report.target).toBe('@test/server');
+  });
+
+  it('writes receipt files and creates parent directories', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-receipt-'));
+    const file = join(dir, 'nested', 'mcp-probe.receipt.json');
+
+    try {
+      writeReceiptFile(makeReport({ overallStatus: 'warn' }), file);
+      const parsed = JSON.parse(readFileSync(file, 'utf8'));
+      expect(parsed.receiptType).toBe('mcp-readiness');
+      expect(parsed.report.overallStatus).toBe('warn');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('redacts secrets in receipt files', () => {
+    const receipt = buildReceipt(makeReport({
+      target: 'https://mcp.example.com/mcp?api_key=sk_live_123456789',
+      checks: [{ name: 'MCP protocol handshake', status: 'fail', message: 'Bearer abcdefghijklmnop' }],
+      overallStatus: 'fail',
+    }));
+
+    const serialized = JSON.stringify(receipt);
+    expect(serialized).toContain('api_key=[REDACTED]');
+    expect(serialized).toContain('Bearer [REDACTED]');
+    expect(serialized).not.toContain('sk_live_123456789');
+    expect(serialized).not.toContain('abcdefghijklmnop');
   });
 });
 
