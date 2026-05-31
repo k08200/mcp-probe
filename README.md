@@ -4,19 +4,32 @@
 [![npm](https://img.shields.io/npm/v/@k08200/mcp-probe)](https://www.npmjs.com/package/@k08200/mcp-probe)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**CI readiness gate for MCP servers.**
+**Self-report is not a receipt.**
 
-`tools/list` is not enough. An MCP server can start, advertise a clean schema, and still fail every real tool call because auth, scopes, downstream permissions, or environment setup are broken.
+`mcp-probe` is a CI readiness gate for MCP servers. It checks what actually happened at runtime, not just what a server advertised through `tools/list`.
 
-`mcp-probe` checks the path an agent actually depends on:
+An MCP server can start, advertise a clean schema, and still fail every real tool call because auth, scopes, downstream permissions, response shapes, or environment setup are broken.
+
+`mcp-probe` gives CI an independent receipt for the path an agent actually depends on:
 
 - MCP `initialize` handshake
 - `tools/list` discovery
-- optional real `tools/call` dry-runs
+- real `tools/call` dry-runs
 - sidecar sample inputs for meaningful calls
-- contract assertions for result shape, row limits, stable error codes, and leak checks
+- contract assertions for result shape, JSON Schema, row limits, stable error codes, and leak checks
 - GitHub Actions summaries and machine-readable JSON output
-- optional JSON receipt artifacts for independent CI evidence
+- JSON receipt artifacts for independent CI evidence
+
+## Tested Servers
+
+Known local fixtures:
+
+| Server | Coverage |
+|---|---|
+| `@modelcontextprotocol/server-memory` | handshake and tool discovery smoke test |
+| `examples/fixtures/stdio-mcp-server.js` | tool calls, auth warning, DB read contract, denied write, JSON Schema, receipt artifact |
+
+Trying it on another MCP server? Add the result to [#4 Tested MCP servers](https://github.com/k08200/mcp-probe/issues/4).
 
 ## Looking For Real-World Recipes
 
