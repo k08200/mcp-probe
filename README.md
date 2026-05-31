@@ -22,11 +22,13 @@ An MCP server can start, advertise a clean schema, and still fail every real too
 
 ## Tested Servers
 
-Known local fixtures:
+Smoke-tested targets:
 
 | Server | Coverage |
 |---|---|
-| `@modelcontextprotocol/server-memory` | handshake and tool discovery smoke test |
+| `@modelcontextprotocol/server-memory` | pass: handshake, `tools/list`, schema validation; 9 tools |
+| `@modelcontextprotocol/server-sequential-thinking` | pass: handshake, `tools/list`, schema validation; 1 tool |
+| `@modelcontextprotocol/server-everything` | pass: handshake, tools/resources/prompts discovery, schema validation; 14 tools, 7 resources, 4 prompts |
 | `examples/fixtures/stdio-mcp-server.js` | tool calls, auth warning, DB read contract, denied write, JSON Schema, receipt artifact |
 
 Trying it on another MCP server? Add the result to [#4 Tested MCP servers](https://github.com/k08200/mcp-probe/issues/4).
