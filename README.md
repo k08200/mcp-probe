@@ -176,7 +176,7 @@ Supported assertions:
 | `contains` | Text snippets that must appear. |
 | `notContains` | Text snippets that must not appear, useful for leak checks. |
 | `not_error_code` | HTTP/status codes treated as warnings, usually auth handoff codes. |
-| `jsonSchema` | JSON Schema subset for validating the observed tool result shape. |
+| `jsonSchema` | JSON Schema subset for validating the observed tool result shape. Supports `type`, `required`, `properties`, `items`, `enum`, `additionalProperties`, `minimum`, `maximum`, `minLength`, `maxLength`, and `pattern`. |
 
 ## Doctor
 

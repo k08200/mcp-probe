@@ -148,4 +148,63 @@ describe('tool contract assertions', () => {
     expect(schemaAssertion?.status).toBe('fail');
     expect(schemaAssertion?.message).toContain('$.source: required property missing');
   });
+
+  it('supports jsonSchema range and pattern constraints', () => {
+    const assertions = evaluateToolAssertions({
+      actualStatus: 'pass',
+      result: resultWithTextJson({
+        temperature: 24.5,
+        units: 'celsius',
+        freshness: '2026-05-31T12:00:00.000Z',
+      }),
+      expect: {
+        jsonSchema: {
+          type: 'object',
+          required: ['temperature', 'units', 'freshness'],
+          properties: {
+            temperature: { type: 'number', minimum: -80, maximum: 80 },
+            units: { enum: ['celsius', 'fahrenheit'] },
+            freshness: {
+              type: 'string',
+              minLength: 20,
+              maxLength: 40,
+              pattern: '^\\d{4}-\\d{2}-\\d{2}T',
+            },
+          },
+        },
+      },
+    });
+
+    expect(assertions.find((assertion) => assertion.name === 'jsonSchema')?.status).toBe('pass');
+  });
+
+  it('fails jsonSchema range and pattern violations', () => {
+    const assertions = evaluateToolAssertions({
+      actualStatus: 'pass',
+      result: resultWithTextJson({
+        temperature: 300,
+        units: 'kelvin',
+        freshness: 'yesterday',
+      }),
+      expect: {
+        jsonSchema: {
+          type: 'object',
+          required: ['temperature', 'units', 'freshness'],
+          properties: {
+            temperature: { type: 'number', minimum: -80, maximum: 80 },
+            units: { enum: ['celsius', 'fahrenheit'] },
+            freshness: {
+              type: 'string',
+              minLength: 20,
+              pattern: '^\\d{4}-\\d{2}-\\d{2}T',
+            },
+          },
+        },
+      },
+    });
+
+    const schemaAssertion = assertions.find((assertion) => assertion.name === 'jsonSchema');
+    expect(schemaAssertion?.status).toBe('fail');
+    expect(schemaAssertion?.message).toContain('$.temperature: 300 exceeds maximum 80');
+  });
 });

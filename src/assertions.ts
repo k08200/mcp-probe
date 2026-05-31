@@ -142,6 +142,33 @@ function validateJsonSchema(value: unknown, schema: unknown, path = '$'): string
     errors.push(`${path}: value is not in enum`);
   }
 
+  if (typeof value === 'number') {
+    if (typeof typed.minimum === 'number' && value < typed.minimum) {
+      errors.push(`${path}: ${value} is below minimum ${typed.minimum}`);
+    }
+    if (typeof typed.maximum === 'number' && value > typed.maximum) {
+      errors.push(`${path}: ${value} exceeds maximum ${typed.maximum}`);
+    }
+  }
+
+  if (typeof value === 'string') {
+    if (typeof typed.minLength === 'number' && value.length < typed.minLength) {
+      errors.push(`${path}: string length ${value.length} is below minLength ${typed.minLength}`);
+    }
+    if (typeof typed.maxLength === 'number' && value.length > typed.maxLength) {
+      errors.push(`${path}: string length ${value.length} exceeds maxLength ${typed.maxLength}`);
+    }
+    if (typeof typed.pattern === 'string') {
+      try {
+        if (!new RegExp(typed.pattern).test(value)) {
+          errors.push(`${path}: string does not match pattern ${typed.pattern}`);
+        }
+      } catch {
+        errors.push(`${path}: invalid pattern ${typed.pattern}`);
+      }
+    }
+  }
+
   if (typed.type === 'object' || (value && typeof value === 'object' && !Array.isArray(value))) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       errors.push(`${path}: expected object, got ${schemaType(value)}`);
@@ -200,6 +227,10 @@ function fail(name: string, message: string): AssertionResult {
   return { name, status: 'fail', message };
 }
 
+function requiredMissingCount(errors: string[]): number {
+  return errors.filter((error) => error.includes('required property missing')).length;
+}
+
 export function evaluateToolAssertions(input: EvaluationInput): AssertionResult[] {
   const { expect } = input;
   if (!expect) return [];
@@ -254,16 +285,15 @@ export function evaluateToolAssertions(input: EvaluationInput): AssertionResult[
   }
 
   if (expect.jsonSchema) {
-    const match = payload.values
-      .map((value) => validateJsonSchema(value, expect.jsonSchema))
-      .find((errors) => errors.length === 0);
+    const schemaResults = payload.values.map((value) => validateJsonSchema(value, expect.jsonSchema));
+    const match = schemaResults.find((errors) => errors.length === 0);
     if (match) {
       assertions.push(pass('jsonSchema', 'Output matched expected JSON schema'));
     } else {
-      const firstErrors = payload.values.length > 0
-        ? validateJsonSchema(payload.values[0], expect.jsonSchema)
+      const bestErrors = schemaResults.length > 0
+        ? [...schemaResults].sort((a, b) => requiredMissingCount(a) - requiredMissingCount(b) || a.length - b.length)[0]
         : ['no result payload found'];
-      assertions.push(fail('jsonSchema', `Output did not match expected JSON schema: ${firstErrors.slice(0, 3).join('; ')}`));
+      assertions.push(fail('jsonSchema', `Output did not match expected JSON schema: ${bestErrors.slice(0, 3).join('; ')}`));
     }
   }
 

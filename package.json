@@ -1,6 +1,6 @@
 {
   "name": "@k08200/mcp-probe",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "Quality checker for MCP servers — validates protocol handshake, discovery, tool-call dry-runs, and latency",
   "type": "module",
   "bin": {

@@ -61,7 +61,7 @@
               },
               "jsonSchema": {
                 "type": "object",
-                "description": "JSON Schema subset applied to the observed tool result payload."
+                "description": "JSON Schema subset applied to the observed tool result payload. Supported keywords include type, required, properties, items, enum, additionalProperties, minimum, maximum, minLength, maxLength, and pattern."
               }
             }
           }

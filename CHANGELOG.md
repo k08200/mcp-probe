@@ -5,6 +5,7 @@
 ### Added
 
 - `expect.jsonSchema` for validating observed tool result shapes in sidecar contracts.
+- `expect.jsonSchema` range and string constraints: `minimum`, `maximum`, `minLength`, `maxLength`, and `pattern`.
 - Sidecar schema and doctor validation for `expect.jsonSchema`.
 - Strict self-check coverage for JSON Schema result assertions.
 
