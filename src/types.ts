@@ -63,6 +63,7 @@ export type ToolExpectations = {
   errorCode?: string;
   contains?: string[];
   notContains?: string[];
+  jsonSchema?: Record<string, unknown>;
 };
 
 export type ToolSidecarEntry = {

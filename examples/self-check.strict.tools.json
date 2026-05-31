@@ -12,7 +12,27 @@
       "expect": {
         "status": "pass",
         "requiredFields": ["rowCount", "limit", "source", "freshness"],
-        "maxRows": 100
+        "maxRows": 100,
+        "jsonSchema": {
+          "type": "object",
+          "required": ["rowCount", "limit", "source", "freshness", "rows"],
+          "properties": {
+            "rowCount": { "type": "integer" },
+            "limit": { "type": "integer" },
+            "source": { "type": "string" },
+            "freshness": { "type": "string" },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["ok"],
+                "properties": {
+                  "ok": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "db_write": {

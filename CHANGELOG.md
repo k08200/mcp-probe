@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.10.0
+
+### Added
+
+- `expect.jsonSchema` for validating observed tool result shapes in sidecar contracts.
+- Sidecar schema and doctor validation for `expect.jsonSchema`.
+- Strict self-check coverage for JSON Schema result assertions.
+
 ## 1.9.0
 
 ### Added

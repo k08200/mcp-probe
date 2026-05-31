@@ -40,7 +40,7 @@ export function parseToolSidecar(parsed: unknown, label: string): ToolSidecar {
         throw new Error(`Invalid tools file: ${toolName}.expect must be an object`);
       }
       const expect = entry.expect;
-      rejectUnknownKeys(expect, ['status', 'not_error_code', 'requiredFields', 'maxRows', 'errorCode', 'contains', 'notContains'], `${toolName}.expect`);
+      rejectUnknownKeys(expect, ['status', 'not_error_code', 'requiredFields', 'maxRows', 'errorCode', 'contains', 'notContains', 'jsonSchema'], `${toolName}.expect`);
       if (expect.status !== undefined && expect.status !== 'pass' && expect.status !== 'fail' && expect.status !== 'warn') {
         throw new Error(`Invalid tools file: ${toolName}.expect.status must be pass, fail, or warn`);
       }
@@ -58,6 +58,9 @@ export function parseToolSidecar(parsed: unknown, label: string): ToolSidecar {
       }
       if (expect.errorCode !== undefined && typeof expect.errorCode !== 'string') {
         throw new Error(`Invalid tools file: ${toolName}.expect.errorCode must be a string`);
+      }
+      if (expect.jsonSchema !== undefined && !isObject(expect.jsonSchema)) {
+        throw new Error(`Invalid tools file: ${toolName}.expect.jsonSchema must be an object`);
       }
     }
   }

@@ -137,7 +137,15 @@ When a sidecar is provided, mcp-probe calls only the tools listed in that file. 
         "status": "pass",
         "not_error_code": [401, 403],
         "requiredFields": ["source", "freshness"],
-        "maxRows": 100
+        "maxRows": 100,
+        "jsonSchema": {
+          "type": "object",
+          "required": ["source", "freshness"],
+          "properties": {
+            "source": { "type": "string" },
+            "freshness": { "type": "string" }
+          }
+        }
       }
     }
   }
@@ -155,6 +163,7 @@ Supported assertions:
 | `contains` | Text snippets that must appear. |
 | `notContains` | Text snippets that must not appear, useful for leak checks. |
 | `not_error_code` | HTTP/status codes treated as warnings, usually auth handoff codes. |
+| `jsonSchema` | JSON Schema subset for validating the observed tool result shape. |
 
 ## Doctor
 

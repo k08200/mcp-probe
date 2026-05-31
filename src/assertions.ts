@@ -106,6 +106,92 @@ function includesText(haystack: string, needle: string): boolean {
   return haystack.toLowerCase().includes(needle.toLowerCase());
 }
 
+function schemaType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+function expectedTypes(schema: Record<string, unknown>): string[] {
+  const type = schema.type;
+  if (typeof type === 'string') return [type];
+  if (Array.isArray(type) && type.every((entry) => typeof entry === 'string')) return type;
+  return [];
+}
+
+function valueMatchesType(value: unknown, type: string): boolean {
+  if (type === 'integer') return Number.isInteger(value);
+  if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
+  return schemaType(value) === type;
+}
+
+function validateJsonSchema(value: unknown, schema: unknown, path = '$'): string[] {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    return [`${path}: schema must be an object`];
+  }
+
+  const typed = schema as Record<string, unknown>;
+  const errors: string[] = [];
+  const types = expectedTypes(typed);
+  if (types.length > 0 && !types.some((type) => valueMatchesType(value, type))) {
+    errors.push(`${path}: expected ${types.join('|')}, got ${schemaType(value)}`);
+    return errors;
+  }
+
+  if (Array.isArray(typed.enum) && !typed.enum.some((entry) => Object.is(entry, value))) {
+    errors.push(`${path}: value is not in enum`);
+  }
+
+  if (typed.type === 'object' || (value && typeof value === 'object' && !Array.isArray(value))) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push(`${path}: expected object, got ${schemaType(value)}`);
+      return errors;
+    }
+
+    const record = value as Record<string, unknown>;
+    const required = Array.isArray(typed.required)
+      ? typed.required.filter((entry): entry is string => typeof entry === 'string')
+      : [];
+    for (const key of required) {
+      if (!Object.prototype.hasOwnProperty.call(record, key)) {
+        errors.push(`${path}.${key}: required property missing`);
+      }
+    }
+
+    const properties = typed.properties && typeof typed.properties === 'object' && !Array.isArray(typed.properties)
+      ? typed.properties as Record<string, unknown>
+      : {};
+    for (const [key, childSchema] of Object.entries(properties)) {
+      if (Object.prototype.hasOwnProperty.call(record, key)) {
+        errors.push(...validateJsonSchema(record[key], childSchema, `${path}.${key}`));
+      }
+    }
+
+    if (typed.additionalProperties === false) {
+      const allowed = new Set(Object.keys(properties));
+      const extra = Object.keys(record).filter((key) => !allowed.has(key));
+      for (const key of extra) {
+        errors.push(`${path}.${key}: additional property not allowed`);
+      }
+    }
+  }
+
+  if (typed.type === 'array' || Array.isArray(value)) {
+    if (!Array.isArray(value)) {
+      errors.push(`${path}: expected array, got ${schemaType(value)}`);
+      return errors;
+    }
+
+    if (typed.items !== undefined) {
+      for (const [index, entry] of value.entries()) {
+        errors.push(...validateJsonSchema(entry, typed.items, `${path}[${index}]`));
+      }
+    }
+  }
+
+  return errors;
+}
+
 function pass(name: string, message: string): AssertionResult {
   return { name, status: 'pass', message };
 }
@@ -165,6 +251,20 @@ export function evaluateToolAssertions(input: EvaluationInput): AssertionResult[
     assertions.push(!includesText(payload.text, forbiddenText)
       ? pass(`notContains.${forbiddenText}`, `Output does not contain "${forbiddenText}"`)
       : fail(`notContains.${forbiddenText}`, `Output leaked forbidden text "${forbiddenText}"`));
+  }
+
+  if (expect.jsonSchema) {
+    const match = payload.values
+      .map((value) => validateJsonSchema(value, expect.jsonSchema))
+      .find((errors) => errors.length === 0);
+    if (match) {
+      assertions.push(pass('jsonSchema', 'Output matched expected JSON schema'));
+    } else {
+      const firstErrors = payload.values.length > 0
+        ? validateJsonSchema(payload.values[0], expect.jsonSchema)
+        : ['no result payload found'];
+      assertions.push(fail('jsonSchema', `Output did not match expected JSON schema: ${firstErrors.slice(0, 3).join('; ')}`));
+    }
   }
 
   return assertions;

@@ -58,6 +58,10 @@
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "Text snippets that must not appear in the result or error payload. Use this to catch leaked internals."
+              },
+              "jsonSchema": {
+                "type": "object",
+                "description": "JSON Schema subset applied to the observed tool result payload."
               }
             }
           }

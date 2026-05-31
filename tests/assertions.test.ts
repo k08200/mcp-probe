@@ -76,4 +76,76 @@ describe('tool contract assertions', () => {
       'notContains.stack',
     ]);
   });
+
+  it('passes jsonSchema checks for matching tool output', () => {
+    const assertions = evaluateToolAssertions({
+      actualStatus: 'pass',
+      result: resultWithTextJson({
+        rowCount: 1,
+        source: 'fixture-db',
+        rows: [{ id: 'user_1', email: 'a@example.com' }],
+      }),
+      expect: {
+        jsonSchema: {
+          type: 'object',
+          required: ['rowCount', 'source', 'rows'],
+          properties: {
+            rowCount: { type: 'integer' },
+            source: { type: 'string' },
+            rows: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id', 'email'],
+                properties: {
+                  id: { type: 'string' },
+                  email: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(assertions).toContainEqual({
+      name: 'jsonSchema',
+      status: 'pass',
+      message: 'Output matched expected JSON schema',
+    });
+  });
+
+  it('fails jsonSchema checks for mismatched tool output', () => {
+    const assertions = evaluateToolAssertions({
+      actualStatus: 'pass',
+      result: resultWithTextJson({
+        rowCount: '1',
+        rows: [{ id: 123 }],
+      }),
+      expect: {
+        jsonSchema: {
+          type: 'object',
+          required: ['rowCount', 'source', 'rows'],
+          properties: {
+            rowCount: { type: 'integer' },
+            source: { type: 'string' },
+            rows: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id'],
+                properties: {
+                  id: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const schemaAssertion = assertions.find((assertion) => assertion.name === 'jsonSchema');
+    expect(schemaAssertion?.status).toBe('fail');
+    expect(schemaAssertion?.message).toContain('$.source: required property missing');
+  });
 });
