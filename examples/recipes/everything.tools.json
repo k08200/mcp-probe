@@ -1,0 +1,57 @@
+{
+  "tools": {
+    "echo": {
+      "input": {
+        "message": "mcp-probe contract smoke"
+      },
+      "expect": {
+        "status": "pass",
+        "contains": ["mcp-probe contract smoke"],
+        "jsonSchema": {
+          "type": "object",
+          "required": ["content"],
+          "properties": {
+            "content": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["type", "text"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["text"] },
+                  "text": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "get-sum": {
+      "input": {
+        "a": 2,
+        "b": 3
+      },
+      "expect": {
+        "status": "pass",
+        "contains": ["5"]
+      }
+    },
+    "get-resource-links": {
+      "input": {
+        "count": 3
+      },
+      "expect": {
+        "status": "pass",
+        "contains": ["resource"]
+      }
+    },
+    "get-structured-content": {
+      "input": {
+        "location": "Chicago"
+      },
+      "expect": {
+        "status": "pass"
+      }
+    }
+  }
+}

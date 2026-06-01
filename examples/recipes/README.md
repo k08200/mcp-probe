@@ -16,6 +16,19 @@ mcp-probe https://mcp.example.com/mcp \
 
 Focus: auth handoff and downstream API reachability for logs and metrics.
 
+## Everything
+
+```bash
+mcp-probe --config examples/recipes/everything.config.json \
+  --receipt-file mcp-probe.everything.receipt.json \
+  --fail-on-warn
+```
+
+Focus: an executable public contract recipe. This probes the official
+`@modelcontextprotocol/server-everything` package with sidecar inputs,
+`tools/call` dry-runs, catalog policy, JSON Schema assertions, and a receipt
+artifact.
+
 ## Supabase
 
 ```bash

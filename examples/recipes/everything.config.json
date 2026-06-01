@@ -1,0 +1,13 @@
+{
+  "timeoutMs": 10000,
+  "servers": [
+    {
+      "name": "everything",
+      "target": "@modelcontextprotocol/server-everything",
+      "transport": "stdio",
+      "expectedTools": ["echo", "get-sum", "get-resource-links", "get-structured-content"],
+      "toolsFile": "./everything.tools.json",
+      "probeTools": true
+    }
+  ]
+}
