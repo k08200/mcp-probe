@@ -45,6 +45,10 @@ The core tool is useful only if it reflects real MCP failure modes. If you run M
 
 Do not paste secrets. Recipes should use placeholders such as `${DATADOG_MCP_TOKEN}` and read-only sample calls.
 
+Want to contribute a recipe for another server? Start with
+[`docs/RECIPE_GUIDE.md`](docs/RECIPE_GUIDE.md) and
+[`examples/recipes/TEMPLATE.tools.json`](examples/recipes/TEMPLATE.tools.json).
+
 ## Quick Start
 
 ```bash

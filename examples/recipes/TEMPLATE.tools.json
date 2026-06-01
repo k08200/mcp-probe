@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/k08200/mcp-probe/main/schemas/mcp-probe.sidecar.schema.json",
+  "tools": {
+    "replace_with_read_only_tool": {
+      "input": {
+        "query": "safe read-only sample"
+      },
+      "expect": {
+        "status": "pass",
+        "requiredFields": ["source", "freshness"],
+        "maxRows": 100,
+        "jsonSchema": {
+          "type": "object",
+          "required": ["source", "freshness"],
+          "properties": {
+            "source": { "type": "string" },
+            "freshness": { "type": "string" }
+          }
+        },
+        "notContains": ["token", "password", "DATABASE_URL", "stack"]
+      }
+    },
+    "replace_with_denied_action_if_safe": {
+      "input": {
+        "id": "placeholder"
+      },
+      "expect": {
+        "status": "fail",
+        "errorCode": "PERMISSION_DENIED",
+        "notContains": ["token", "password", "DATABASE_URL", "stack"]
+      }
+    }
+  }
+}

@@ -6,6 +6,14 @@ Tool names differ between MCP server implementations. Treat these as starting
 points: run `mcp-probe <server> --output json`, inspect the discovered tool
 names and schemas, then adjust the recipe to match your server.
 
+For a full contribution checklist, see [`docs/RECIPE_GUIDE.md`](../../docs/RECIPE_GUIDE.md).
+
+Start a new recipe from the template:
+
+```bash
+cp examples/recipes/TEMPLATE.tools.json examples/recipes/<server>.tools.json
+```
+
 ## Datadog
 
 ```bash

@@ -11,6 +11,17 @@ body:
     validations:
       required: true
   - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - stdio
+        - http
+        - sse
+        - unknown
+    validations:
+      required: true
+  - type: dropdown
     id: auth
     attributes:
       label: Auth model
@@ -20,6 +31,20 @@ body:
         - OAuth/browser handoff
         - service account
         - unknown
+    validations:
+      required: true
+  - type: textarea
+    id: bootstrap
+    attributes:
+      label: Bootstrap command
+      description: Paste the command you used to generate the config and sidecar. Redact secrets.
+      value: |
+        npx @k08200/mcp-probe@latest init \
+          --target <server> \
+          --discover \
+          --lock-tools \
+          --github-actions
+      render: shell
   - type: textarea
     id: tools
     attributes:
@@ -34,8 +59,45 @@ body:
       label: Safe sample inputs
       description: Provide read-only or harmless inputs that exercise the real call path. Redact secrets.
       render: json
+    validations:
+      required: true
+  - type: textarea
+    id: assertions
+    attributes:
+      label: Assertions
+      description: List expected fields, JSON Schema checks, row limits, stable error codes, or leak checks.
+      placeholder: |
+        requiredFields: source, freshness
+        maxRows: 100
+        errorCode for denied writes: PERMISSION_DENIED
+        notContains: token, password, DATABASE_URL, stack
+    validations:
+      required: true
+  - type: textarea
+    id: receipt
+    attributes:
+      label: Receipt command or artifact notes
+      description: Show how CI generated `mcp-probe.receipt.json`, or explain why no receipt is available.
+      value: |
+        npx @k08200/mcp-probe@latest \
+          --config mcp-probe.config.json \
+          --github-summary \
+          --fail-on-warn \
+          --receipt-file mcp-probe.receipt.json
+      render: shell
   - type: textarea
     id: notes
     attributes:
       label: Notes
-      description: Mention known warnings, expected 401/403 behavior, or CI constraints.
+      description: Mention known warnings, expected 401/403 behavior, CI constraints, or redaction decisions.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I removed tokens, API keys, private URLs, tenant IDs, customer data, and raw logs.
+          required: true
+        - label: The sample inputs are read-only, harmless, or intentionally denied by the server.
+          required: true
+        - label: The recipe does not require destructive actions to pass.
+          required: true
