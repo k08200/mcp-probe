@@ -430,7 +430,7 @@ export function runDoctor(options: DoctorOptions): DoctorReport {
       checks.push({
         name: 'Sidecar files',
         status: 'warn',
-        message: 'No toolsFile entries found; tool calls will use schema-minimum generated inputs',
+        message: 'No toolsFile entries found; tool calls will use schema-derived generated inputs',
       });
     } else {
       for (const toolsFile of toolsFiles) {

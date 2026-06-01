@@ -66,8 +66,8 @@ describe('initProject', () => {
               type: 'object',
               required: ['query', 'limit'],
               properties: {
-                query: { type: 'string' },
-                limit: { type: 'integer' },
+                query: { type: 'string', minLength: 3 },
+                limit: { type: 'integer', minimum: 1 },
               },
             },
           },
@@ -76,6 +76,7 @@ describe('initProject', () => {
             inputSchema: {
               type: 'object',
               properties: {
+                mode: { type: 'string', enum: ['read', 'write'] },
                 includeArchived: { type: 'boolean' },
               },
             },
@@ -86,11 +87,11 @@ describe('initProject', () => {
       const sidecar = JSON.parse(readFileSync(toolsFile, 'utf8'));
       expect(sidecar.tools).toEqual({
         search: {
-          input: { query: '', limit: 0 },
+          input: { query: 'sample', limit: 1 },
           expect: { not_error_code: [401, 403] },
         },
         list: {
-          input: { includeArchived: false },
+          input: { mode: 'read', includeArchived: false },
           expect: { not_error_code: [401, 403] },
         },
       });

@@ -129,7 +129,7 @@ program
       }
       console.log('');
       const next = opts.discover
-        ? `Next: review ${opts.sidecarFile} and replace schema-minimum values with safe real samples.`
+        ? `Next: review ${opts.sidecarFile} and replace schema-derived samples with safe real inputs.`
         : `Next: edit ${opts.sidecarFile} with real tool names and safe sample inputs.`;
       console.log(next);
       console.log(`Run:  npx @k08200/mcp-probe@latest --config ${opts.configFile} --github-summary --fail-on-warn --receipt-file mcp-probe.receipt.json`);

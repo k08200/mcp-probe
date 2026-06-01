@@ -49,7 +49,7 @@ export function issueForToolCall(result: ToolCallResult): Issue | undefined {
   if (result.source === 'auto') {
     return {
       code: 'AUTO_DRY_RUN_INPUT',
-      hint: 'The auto-generated schema-minimum input failed. Add a .mcp-probe.json sidecar with realistic read-only sample inputs for this tool.',
+      hint: 'The auto-generated schema-derived input failed. Add a .mcp-probe.json sidecar with realistic read-only sample inputs for this tool.',
       docsUrl: DOCS.sidecarInputs,
     };
   }

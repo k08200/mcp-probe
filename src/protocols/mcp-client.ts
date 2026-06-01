@@ -7,6 +7,7 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { assertionFailureMessage, evaluateToolAssertions } from '../assertions.js';
 import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
+import { sampleObjectFromSchema } from '../schema-sample.js';
 import { VERSION } from '../version.js';
 import type { CheckStatus, ProbeOptions, ProbeResult, StderrRules, ToolCallResult, ToolExpectations } from '../types.js';
 
@@ -53,30 +54,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   return Promise.race([promise, timeoutPromise]).finally(() => {
     if (timeoutId) clearTimeout(timeoutId);
   });
-}
-
-// Fallback: generate minimal inputs from JSON Schema when no sidecar entry exists
-function generateMinimalInput(schema: unknown): Record<string, unknown> {
-  if (!schema || typeof schema !== 'object') return {};
-  const s = schema as Record<string, unknown>;
-  const props = s['properties'] as Record<string, unknown> | undefined;
-  if (!props) return {};
-  const required = (s['required'] as string[] | undefined) ?? [];
-  const input: Record<string, unknown> = {};
-  for (const key of required) {
-    const prop = props[key] as Record<string, unknown> | undefined;
-    if (!prop) continue;
-    switch (prop['type'] as string | undefined) {
-      case 'string':  input[key] = ''; break;
-      case 'number':
-      case 'integer': input[key] = 0; break;
-      case 'boolean': input[key] = false; break;
-      case 'array':   input[key] = []; break;
-      case 'object':  input[key] = {}; break;
-      default:        input[key] = null;
-    }
-  }
-  return input;
 }
 
 function isAuthError(message: string, notErrorCodes?: number[]): boolean {
@@ -254,8 +231,8 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
         }
 
         // With a sidecar, only explicitly declared tools are called.
-        // Without a sidecar, fall back to schema-minimum inputs for broad smoke coverage.
-        const input = candidate.entry?.input ?? generateMinimalInput(candidate.tool.inputSchema);
+        // Without a sidecar, fall back to schema-derived inputs for broad smoke coverage.
+        const input = candidate.entry?.input ?? sampleObjectFromSchema(candidate.tool.inputSchema);
         const source: ToolCallResult['source'] = candidate.entry ? 'sidecar' : 'auto';
         const notErrorCodes = candidate.entry?.expect?.not_error_code;
         const expectations = candidate.entry?.expect;

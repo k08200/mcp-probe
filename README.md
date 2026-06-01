@@ -66,6 +66,11 @@ Then run:
 npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary --fail-on-warn
 ```
 
+`init --discover` uses the advertised input schemas to seed sidecar samples,
+including defaults, enum values, numeric minimums, nested objects, and arrays.
+Review those samples before running them in CI; generated inputs are a starting
+point, not proof that the call is safe for your environment.
+
 ## Commands
 
 ```bash
