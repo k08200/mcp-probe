@@ -82,6 +82,7 @@ program
   .option('--transport <mode>', 'transport mode: stdio | http | sse')
   .option('--header-env <name>', 'environment variable used for Authorization: Bearer ${NAME}')
   .option('--discover', 'connect to the target and scaffold sidecar entries from discovered tools')
+  .option('--lock-tools', 'when used with --discover, generate allowedTools to fail on unexpected tool additions')
   .option('--github-actions', 'write .github/workflows/mcp-probe.yml')
   .option('--workflow-file <path>', 'GitHub Actions workflow file to write', '.github/workflows/mcp-probe.yml')
   .option('--force', 'overwrite existing files')
@@ -93,6 +94,7 @@ program
     transport?: string;
     headerEnv?: string;
     discover?: boolean;
+    lockTools?: boolean;
     githubActions?: boolean;
     workflowFile: string;
     force?: boolean;
@@ -122,6 +124,7 @@ program
         transport,
         headerEnv: opts.headerEnv,
         discoveredTools,
+        lockTools: Boolean(opts.lockTools),
       });
 
       for (const file of result.files) {

@@ -84,6 +84,10 @@ describe('initProject', () => {
         ],
       });
 
+      const config = JSON.parse(readFileSync(configFile, 'utf8'));
+      expect(config.servers[0].expectedTools).toEqual(['search', 'list']);
+      expect(config.servers[0]).not.toHaveProperty('allowedTools');
+
       const sidecar = JSON.parse(readFileSync(toolsFile, 'utf8'));
       expect(sidecar.tools).toEqual({
         search: {
@@ -96,6 +100,34 @@ describe('initProject', () => {
         },
       });
       expect(sidecar.tools).not.toHaveProperty('replace_with_tool_name');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('can lock discovered tools as an exact allowed catalog', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-init-'));
+    const configFile = join(dir, 'mcp-probe.config.json');
+    const toolsFile = join(dir, '.mcp-probe.json');
+
+    try {
+      initProject({
+        target: '@test/server',
+        configFile,
+        toolsFile,
+        githubActions: false,
+        force: false,
+        lockTools: true,
+        discoveredTools: [
+          { name: 'read_data', inputSchema: { type: 'object', properties: {} } },
+          { name: 'read_data', inputSchema: { type: 'object', properties: {} } },
+          { name: 'search', inputSchema: { type: 'object', properties: {} } },
+        ],
+      });
+
+      const config = JSON.parse(readFileSync(configFile, 'utf8'));
+      expect(config.servers[0].expectedTools).toEqual(['read_data', 'search']);
+      expect(config.servers[0].allowedTools).toEqual(['read_data', 'search']);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

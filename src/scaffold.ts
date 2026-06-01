@@ -10,6 +10,8 @@ export type BuildConfigOptions = {
   toolsFile: string;
   transport?: TransportMode;
   headerEnv?: string;
+  discoveredTools?: ToolInfo[];
+  lockTools?: boolean;
 };
 
 export function json(value: unknown): string {
@@ -27,6 +29,7 @@ export function serverNameFromTarget(target: string): string {
 }
 
 export function buildConfig(options: BuildConfigOptions): unknown {
+  const discoveredToolNames = uniqueToolNames(options.discoveredTools);
   const server: Record<string, unknown> = {
     name: options.name ?? serverNameFromTarget(options.target),
     target: options.target,
@@ -44,11 +47,22 @@ export function buildConfig(options: BuildConfigOptions): unknown {
     };
   }
 
+  if (discoveredToolNames.length > 0) {
+    server.expectedTools = discoveredToolNames;
+    if (options.lockTools) {
+      server.allowedTools = discoveredToolNames;
+    }
+  }
+
   return {
     $schema: CONFIG_SCHEMA_URL,
     timeoutMs: 10000,
     servers: [server],
   };
+}
+
+function uniqueToolNames(discoveredTools?: ToolInfo[]): string[] {
+  return [...new Set((discoveredTools ?? []).map((tool) => tool.name).filter(Boolean))];
 }
 
 function sidecarEntryForTool(tool: ToolInfo): unknown {

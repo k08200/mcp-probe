@@ -14,6 +14,7 @@ export type InitOptions = {
   transport?: TransportMode;
   headerEnv?: string;
   discoveredTools?: ToolInfo[];
+  lockTools?: boolean;
 };
 
 export type InitFileResult = {

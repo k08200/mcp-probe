@@ -70,6 +70,13 @@ npx @k08200/mcp-probe@latest --config mcp-probe.config.json --github-summary --f
 including defaults, enum values, numeric minimums, nested objects, and arrays.
 Review those samples before running them in CI; generated inputs are a starting
 point, not proof that the call is safe for your environment.
+Do not run generated sidecars against production credentials until mutating,
+admin, export, or environment-inspection tools have been removed or replaced
+with safe read-only samples.
+
+When discovery succeeds, the generated config includes `expectedTools` so CI
+fails if a required tool disappears. Add `--lock-tools` to also generate
+`allowedTools`, which fails CI when unexpected tools appear.
 
 ## Commands
 
