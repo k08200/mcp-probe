@@ -4,6 +4,148 @@
 
 ---
 
+## 0. Dev.to 후속 글 — v1.11.0
+URL: https://dev.to/new
+
+**제목:**
+```
+tools/list is not a readiness check for MCP servers
+```
+
+**태그:** `mcp`, `typescript`, `cli`, `ai`
+
+**본문 (마크다운):**
+```markdown
+The first version of `mcp-probe` checked the obvious things:
+
+- can the MCP server initialize?
+- does `tools/list` work?
+- are tool schemas present?
+
+That was useful, but not enough.
+
+The more I tested real MCP workflows, the clearer the problem became:
+
+> `tools/list` is self-report. CI needs a receipt.
+
+An MCP server can advertise a clean tool catalog and still fail every real call because OAuth handoff, scopes, downstream credentials, row limits, tenant boundaries, or response shapes are broken.
+
+So the latest release of **mcp-probe** focuses less on "does the process start?" and more on "is CI enforcing the contract an agent actually depends on?"
+
+## The new bootstrap flow
+
+```bash
+npx @k08200/mcp-probe@latest init \
+  --target @your-org/your-mcp-server \
+  --discover \
+  --lock-tools \
+  --github-actions
+```
+
+This creates:
+
+- `mcp-probe.config.json`
+- `.mcp-probe.json`
+- `.github/workflows/mcp-probe.yml`
+
+The important part is what happens during `--discover`.
+
+`mcp-probe` connects to the server, reads the live `tools/list` catalog, and generates a starting contract from the observed tool schemas.
+
+## Schema-aware sidecar samples
+
+Older generated samples were too naive. If a schema said:
+
+```json
+{
+  "type": "object",
+  "required": ["location", "count"],
+  "properties": {
+    "location": { "type": "string", "enum": ["Chicago", "New York"] },
+    "count": { "type": "integer", "minimum": 1 }
+  }
+}
+```
+
+the old fallback might produce empty strings or zero values. That often hit input validation and never tested the real call path.
+
+v1.11.0 now uses schema hints:
+
+- `default`
+- `enum`
+- numeric `minimum`
+- string `minLength`
+- nested objects
+- array `minItems`
+
+So the generated sample becomes:
+
+```json
+{
+  "location": "Chicago",
+  "count": 1
+}
+```
+
+It is still only a starting point. You should review generated samples before running them with production credentials, especially for mutating, admin, export, or environment-inspection tools.
+
+## Catalog locking
+
+The other new piece is `--lock-tools`.
+
+With `--discover`, mcp-probe now writes the observed tool names into `expectedTools`, so CI fails if a required tool disappears.
+
+With `--lock-tools`, it also writes `allowedTools`, so CI fails if unexpected tools appear.
+
+That matters for low-trust agent surfaces. If a server suddenly exposes `delete_user`, `export_all`, or `rotate_api_key`, I do not want that to silently become available to an agent just because `tools/list` still returns valid JSON.
+
+Example config:
+
+```json
+{
+  "timeoutMs": 10000,
+  "servers": [
+    {
+      "name": "my-mcp-server",
+      "target": "@your-org/your-mcp-server",
+      "probeTools": true,
+      "toolsFile": ".mcp-probe.json",
+      "expectedTools": ["search", "read_record"],
+      "allowedTools": ["search", "read_record"]
+    }
+  ]
+}
+```
+
+## Receipts
+
+For CI, the workflow can also persist a redacted receipt artifact:
+
+```bash
+npx @k08200/mcp-probe@latest \
+  --config mcp-probe.config.json \
+  --github-summary \
+  --fail-on-warn \
+  --receipt-file mcp-probe.receipt.json
+```
+
+That receipt is the thing I want CI to trust: not the server claiming it has tools, and not an agent claiming what happened later, but an independent probe that actually ran against the boundary.
+
+## Try it
+
+```bash
+npx @k08200/mcp-probe@latest @modelcontextprotocol/server-memory
+```
+
+GitHub: [k08200/mcp-probe](https://github.com/k08200/mcp-probe)
+
+Release: [v1.11.0](https://github.com/k08200/mcp-probe/releases/tag/v1.11.0)
+
+I am especially looking for real Datadog, Supabase, and Gmail MCP recipes. The public fixtures are useful, but the real value is catching auth handoff, permission, tenant-scope, and response-contract failures in CI.
+```
+
+---
+
 ## 1. Reddit — r/LocalLLaMA
 URL: https://www.reddit.com/r/LocalLLaMA/submit
 
