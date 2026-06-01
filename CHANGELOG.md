@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.11.0
+
+### Added
+
+- Schema-aware sidecar sample generation for `init --discover` and auto dry-runs.
+- Generated samples now use JSON Schema defaults, enum values, numeric minimums, string minimum lengths, nested objects, and array minimum sizes when available.
+- `mcp-probe init --discover` now writes discovered tool names into `expectedTools`.
+- `mcp-probe init --discover --lock-tools` writes discovered tool names into `allowedTools` as an exact catalog lock.
+
+### Changed
+
+- Auto dry-run fallback inputs are now schema-derived instead of schema-minimum empty strings and zero values.
+- README now recommends `init --discover --lock-tools` for CI scaffolding and warns against running generated sidecars against production credentials before review.
+
 ## 1.10.0
 
 ### Added

@@ -57,6 +57,7 @@ For CI, scaffold a config, sidecar, and workflow:
 npx @k08200/mcp-probe@latest init \
   --target @your-org/your-mcp-server \
   --discover \
+  --lock-tools \
   --github-actions
 ```
 
@@ -110,6 +111,9 @@ mcp-probe --config mcp-probe.config.json --fail-on-warn
 
 # Create missing config/sidecar/workflow files
 mcp-probe doctor --fix --target @scope/server
+
+# Scaffold CI config from the server's live tools/list catalog
+mcp-probe init --target @scope/server --discover --lock-tools --github-actions
 ```
 
 ## Config
