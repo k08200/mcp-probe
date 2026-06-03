@@ -30,9 +30,29 @@ export function parseToolSidecar(parsed: unknown, label: string): ToolSidecar {
     if (!isObject(entry)) {
       throw new Error(`Invalid tools file: ${toolName} entry must be an object`);
     }
-    rejectUnknownKeys(entry, ['input', 'expect'], toolName);
+    rejectUnknownKeys(entry, ['input', 'retry', 'expect'], toolName);
     if (!isObject(entry.input)) {
       throw new Error(`Invalid tools file: ${toolName}.input must be an object`);
+    }
+
+    if (entry.retry !== undefined) {
+      if (!isObject(entry.retry)) {
+        throw new Error(`Invalid tools file: ${toolName}.retry must be an object`);
+      }
+      const retry = entry.retry;
+      rejectUnknownKeys(retry, ['attempts', 'delayMs', 'retryOn'], `${toolName}.retry`);
+      const attempts = retry.attempts;
+      const delayMs = retry.delayMs;
+      const retryOn = retry.retryOn;
+      if (!Number.isInteger(attempts) || typeof attempts !== 'number' || attempts < 1 || attempts > 10) {
+        throw new Error(`Invalid tools file: ${toolName}.retry.attempts must be an integer between 1 and 10`);
+      }
+      if (delayMs !== undefined && (!Number.isInteger(delayMs) || typeof delayMs !== 'number' || delayMs < 0)) {
+        throw new Error(`Invalid tools file: ${toolName}.retry.delayMs must be a non-negative integer`);
+      }
+      if (retryOn !== undefined && (!Array.isArray(retryOn) || !retryOn.every((item) => Number.isInteger(item) || typeof item === 'string'))) {
+        throw new Error(`Invalid tools file: ${toolName}.retry.retryOn must be an array of integer status codes or string patterns`);
+      }
     }
 
     if (entry.expect !== undefined) {

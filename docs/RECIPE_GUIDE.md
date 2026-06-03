@@ -113,6 +113,38 @@ flows. That is useful information when it is explicit and stable.
 }
 ```
 
+## Retry transient downstream failures
+
+Use retry only for errors that are plausibly transient. Do not retry stable
+permission failures, missing scopes, malformed inputs, or contract assertion
+failures.
+
+```json
+{
+  "tools": {
+    "logs_query": {
+      "input": {
+        "query": "service:web status:error",
+        "timeframe": "1h"
+      },
+      "retry": {
+        "attempts": 3,
+        "delayMs": 1000,
+        "retryOn": [429, 500, 502, 503, 504, "timeout", "rate limit"]
+      },
+      "expect": {
+        "status": "pass",
+        "requiredFields": ["source", "freshness"]
+      }
+    }
+  }
+}
+```
+
+Retry attempts are recorded in JSON output and receipt artifacts. A probe that
+passes after retry is still a pass, but the receipt shows that the downstream
+was flaky.
+
 ## Run with receipts
 
 ```bash

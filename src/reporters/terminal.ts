@@ -84,6 +84,11 @@ export function renderTerminal(report: CheckReport): void {
         const issue = `${r.issue.code}: ${r.issue.hint}`;
         console.log(`      ${chalk.yellow(redactText(issue))}`);
       }
+      for (const attempt of r.attempts ?? []) {
+        const attemptIcon = ICONS[attempt.status];
+        const attemptError = attempt.error ? chalk.dim(` — ${redactText(attempt.error).slice(0, 80)}`) : '';
+        console.log(`      ${attemptIcon} ${chalk.dim(`attempt ${attempt.attempt}: ${attempt.status} ${attempt.latencyMs}ms`)}${attemptError}`);
+      }
       for (const assertion of r.assertions ?? []) {
         const assertionIcon = ICONS[assertion.status];
         console.log(`      ${assertionIcon} ${chalk.dim(`${assertion.name}: ${redactText(assertion.message)}`)}`);

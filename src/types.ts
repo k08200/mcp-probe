@@ -43,8 +43,16 @@ export type ToolCallResult = {
   latencyMs: number;
   error?: string;
   source: 'sidecar' | 'auto';
+  attempts?: ToolCallAttempt[];
   assertions?: AssertionResult[];
   issue?: Issue;
+};
+
+export type ToolCallAttempt = {
+  attempt: number;
+  status: CheckStatus;
+  latencyMs: number;
+  error?: string;
 };
 
 export type ExpectedToolStatus = 'pass' | 'fail' | 'warn';
@@ -68,7 +76,14 @@ export type ToolExpectations = {
 
 export type ToolSidecarEntry = {
   input: Record<string, unknown>;
+  retry?: ToolRetryPolicy;
   expect?: ToolExpectations;
+};
+
+export type ToolRetryPolicy = {
+  attempts: number;
+  delayMs?: number;
+  retryOn?: Array<number | string>;
 };
 
 export type ToolSidecar = {

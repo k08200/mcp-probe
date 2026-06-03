@@ -9,7 +9,7 @@ import { withIssue } from '../issues.js';
 import { redactText } from '../redact.js';
 import { sampleObjectFromSchema } from '../schema-sample.js';
 import { VERSION } from '../version.js';
-import type { CheckStatus, ProbeOptions, ProbeResult, StderrRules, ToolCallResult, ToolExpectations } from '../types.js';
+import type { CheckStatus, ProbeOptions, ProbeResult, StderrRules, ToolCallAttempt, ToolCallResult, ToolExpectations, ToolRetryPolicy } from '../types.js';
 
 // Known startup warning patterns from official MCP servers — not fatal errors
 const STDERR_WARNING_PATTERNS = [
@@ -56,12 +56,31 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function isAuthError(message: string, notErrorCodes?: number[]): boolean {
   if (/401|403|unauthorized|forbidden/i.test(message)) return true;
   if (notErrorCodes) {
     return notErrorCodes.some((code) => message.includes(String(code)));
   }
   return false;
+}
+
+function defaultRetryOn(message: string): boolean {
+  return /429|500|502|503|504|rate limit|temporar|unavailable|timeout|timed out/i.test(message);
+}
+
+function shouldRetryToolCall(error: string | undefined, retry: ToolRetryPolicy | undefined): boolean {
+  if (!retry || !error) return false;
+  const retryOn = retry.retryOn;
+  if (!retryOn || retryOn.length === 0) return defaultRetryOn(error);
+
+  return retryOn.some((entry) => {
+    if (typeof entry === 'number') return error.includes(String(entry));
+    return error.toLowerCase().includes(entry.toLowerCase());
+  });
 }
 
 function toolResultErrorMessage(result: unknown): string | undefined {
@@ -87,6 +106,7 @@ function finalToolResult(
   latencyMs: number,
   source: ToolCallResult['source'],
   expect: ToolExpectations | undefined,
+  attempts: ToolCallAttempt[] | undefined,
   result?: unknown,
   error?: string
 ): ToolCallResult {
@@ -110,6 +130,7 @@ function finalToolResult(
     source,
   };
   if (finalError) payload.error = finalError;
+  if (attempts && attempts.length > 1) payload.attempts = attempts;
   if (assertions.length > 0) payload.assertions = assertions;
   return withIssue(payload);
 }
@@ -236,27 +257,68 @@ export async function probeMcpServer(options: ProbeOptions): Promise<ProbeResult
         const source: ToolCallResult['source'] = candidate.entry ? 'sidecar' : 'auto';
         const notErrorCodes = candidate.entry?.expect?.not_error_code;
         const expectations = candidate.entry?.expect;
+        const retry = candidate.entry?.retry;
+        const maxAttempts = Math.max(1, retry?.attempts ?? 1);
 
         const start = Date.now();
-        try {
-          const result = await withTimeout(
-            client.callTool({ name: candidate.tool.name, arguments: input }),
-            options.timeoutMs,
-            `callTool(${candidate.tool.name})`
-          );
-          const toolError = toolResultErrorMessage(result);
-          if (toolError) {
-            const error = redactText(toolError, secretValues);
+        const attempts: ToolCallAttempt[] = [];
+        let finalResult: unknown;
+        let finalError: string | undefined;
+        let finalStatus: CheckStatus = 'fail';
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          const attemptStart = Date.now();
+          try {
+            const result = await withTimeout(
+              client.callTool({ name: candidate.tool.name, arguments: input }),
+              options.timeoutMs,
+              `callTool(${candidate.tool.name})`
+            );
+            const toolError = toolResultErrorMessage(result);
+            if (toolError) {
+              const error = redactText(toolError, secretValues);
+              const status = isAuthError(error, notErrorCodes) ? 'warn' : 'fail';
+              attempts.push({ attempt, status, latencyMs: Date.now() - attemptStart, error });
+              finalResult = result;
+              finalError = error;
+              finalStatus = status;
+              if (attempt < maxAttempts && shouldRetryToolCall(error, retry)) {
+                await sleep(retry?.delayMs ?? 0);
+                continue;
+              }
+              break;
+            }
+
+            attempts.push({ attempt, status: 'pass', latencyMs: Date.now() - attemptStart });
+            finalResult = result;
+            finalError = undefined;
+            finalStatus = 'pass';
+            break;
+          } catch (err) {
+            const error = redactText(err instanceof Error ? err.message : String(err), secretValues);
             const status = isAuthError(error, notErrorCodes) ? 'warn' : 'fail';
-            toolCallResults.push(finalToolResult(candidate.tool.name, status, Date.now() - start, source, expectations, result, error));
-            continue;
+            attempts.push({ attempt, status, latencyMs: Date.now() - attemptStart, error });
+            finalResult = undefined;
+            finalError = error;
+            finalStatus = status;
+            if (attempt < maxAttempts && shouldRetryToolCall(error, retry)) {
+              await sleep(retry?.delayMs ?? 0);
+              continue;
+            }
+            break;
           }
-          toolCallResults.push(finalToolResult(candidate.tool.name, 'pass', Date.now() - start, source, expectations, result));
-        } catch (err) {
-          const msg = redactText(err instanceof Error ? err.message : String(err), secretValues);
-          const status = isAuthError(msg, notErrorCodes) ? 'warn' : 'fail';
-          toolCallResults.push(finalToolResult(candidate.tool.name, status, Date.now() - start, source, expectations, undefined, msg));
         }
+
+        toolCallResults.push(finalToolResult(
+          candidate.tool.name,
+          finalStatus,
+          Date.now() - start,
+          source,
+          expectations,
+          attempts,
+          finalResult,
+          finalError
+        ));
       }
     }
 

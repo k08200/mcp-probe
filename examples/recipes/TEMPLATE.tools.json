@@ -5,6 +5,11 @@
       "input": {
         "query": "safe read-only sample"
       },
+      "retry": {
+        "attempts": 3,
+        "delayMs": 1000,
+        "retryOn": [429, 500, 502, 503, 504, "timeout", "rate limit"]
+      },
       "expect": {
         "status": "pass",
         "requiredFields": ["source", "freshness"],

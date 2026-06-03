@@ -21,6 +21,34 @@
             "type": "object",
             "description": "Sample input passed to tools/call."
           },
+          "retry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["attempts"],
+            "properties": {
+              "attempts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "description": "Maximum attempts for transient tool-call failures, including the first call."
+              },
+              "delayMs": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Delay between retry attempts in milliseconds."
+              },
+              "retryOn": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    { "type": "integer" },
+                    { "type": "string" }
+                  ]
+                },
+                "description": "HTTP/status codes or case-insensitive text patterns that should be retried."
+              }
+            }
+          },
           "expect": {
             "type": "object",
             "additionalProperties": false,

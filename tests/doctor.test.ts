@@ -513,6 +513,41 @@ steps:
     }
   });
 
+  it('fails for invalid sidecar retry fields', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+
+    try {
+      writeFileSync('mcp-probe.config.json', JSON.stringify({
+        servers: [
+          {
+            name: 'fixture',
+            target: './server.js',
+            toolsFile: '.mcp-probe.json',
+          },
+        ],
+      }));
+      writeFileSync('.mcp-probe.json', JSON.stringify({
+        tools: {
+          echo: {
+            input: {},
+            retry: {
+              attempts: 0,
+            },
+          },
+        },
+      }));
+
+      const report = runDoctor({ configFile: 'mcp-probe.config.json' });
+      expect(report.overallStatus).toBe('fail');
+      expect(report.checks.find((check) => check.name.includes('.mcp-probe.json'))?.message).toContain('echo.retry.attempts');
+    } finally {
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('fails for unknown sidecar fields', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mcp-probe-doctor-'));
     const cwd = process.cwd();

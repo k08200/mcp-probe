@@ -168,6 +168,11 @@ When a sidecar is provided, mcp-probe calls only the tools listed in that file. 
         "query": "service:web status:error",
         "timeframe": "1h"
       },
+      "retry": {
+        "attempts": 3,
+        "delayMs": 1000,
+        "retryOn": [429, 500, 502, 503, 504, "timeout"]
+      },
       "expect": {
         "status": "pass",
         "not_error_code": [401, 403],
@@ -199,6 +204,10 @@ Supported assertions:
 | `notContains` | Text snippets that must not appear, useful for leak checks. |
 | `not_error_code` | HTTP/status codes treated as warnings, usually auth handoff codes. |
 | `jsonSchema` | JSON Schema subset for validating the observed tool result shape. Supports `type`, `required`, `properties`, `items`, `enum`, `additionalProperties`, `minimum`, `maximum`, `minLength`, `maxLength`, and `pattern`. |
+
+Use `retry` for transient downstream failures only. Retry attempts are recorded
+in JSON output and receipt artifacts so flaky dependencies are visible instead
+of silently hidden.
 
 ## Doctor
 

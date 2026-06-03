@@ -40,7 +40,7 @@ describe('probeMcpServer stdio integration', () => {
     });
 
     expect(result.serverInfo).toEqual({ name: 'fixture-server', version: '1.0.0', capabilities: ['tools'] });
-    expect(result.tools.map((tool) => tool.name).sort()).toEqual(['auth_check', 'db_query', 'db_write', 'echo']);
+    expect(result.tools.map((tool) => tool.name).sort()).toEqual(['auth_check', 'db_query', 'db_write', 'echo', 'flaky_read']);
     expect(result.toolCallResults).toHaveLength(4);
 
     const echo = result.toolCallResults?.find((tool) => tool.tool === 'echo');
@@ -82,6 +82,49 @@ describe('probeMcpServer stdio integration', () => {
         source: 'sidecar',
       }),
     ]);
+  }, 10000);
+
+  it('retries transient sidecar tool failures and records attempts', async () => {
+    const result = await probeMcpServer({
+      command: process.execPath,
+      args: [fixtureServer],
+      timeoutMs: 5000,
+      probeTools: true,
+      sidecar: {
+        tools: {
+          flaky_read: {
+            input: { query: 'errors' },
+            retry: {
+              attempts: 2,
+              delayMs: 0,
+              retryOn: [503],
+            },
+            expect: {
+              status: 'pass',
+              requiredFields: ['source', 'freshness'],
+            },
+          },
+        },
+      },
+    });
+
+    const flaky = result.toolCallResults?.find((tool) => tool.tool === 'flaky_read');
+    expect(flaky).toMatchObject({
+      status: 'pass',
+      source: 'sidecar',
+      attempts: [
+        expect.objectContaining({
+          attempt: 1,
+          status: 'fail',
+          error: '503 Service Unavailable: transient downstream',
+        }),
+        expect.objectContaining({
+          attempt: 2,
+          status: 'pass',
+        }),
+      ],
+    });
+    expect(flaky?.assertions?.every((assertion) => assertion.status === 'pass')).toBe(true);
   }, 10000);
 
   it('fails when a sidecar references a tool the server does not expose', async () => {
