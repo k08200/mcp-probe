@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.12.0
+
+### Added
+
+- Sidecar-level `retry` policy for transient downstream tool-call failures.
+- Retry attempts are recorded in tool-call results, JSON output, terminal output, and receipt artifacts.
+- Sidecar schema and `doctor` validation for `retry.attempts`, `retry.delayMs`, and `retry.retryOn`.
+- Fixture coverage for a tool that fails with a transient `503` and succeeds on retry.
+
+### Changed
+
+- Tool dry-runs only retry when the sidecar explicitly opts into retry behavior.
+- Retry defaults target transient failures such as `429`, `500`, `502`, `503`, `504`, timeout, unavailable, and rate-limit errors.
+
 ## 1.11.0
 
 ### Added
