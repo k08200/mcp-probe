@@ -143,7 +143,8 @@ failures.
 
 Retry attempts are recorded in JSON output and receipt artifacts. A probe that
 passes after retry is still a pass, but the receipt shows that the downstream
-was flaky.
+was flaky. When `--github-summary` is enabled, retry receipts are also shown in
+the Actions job summary for quick PR review.
 
 ## Run with receipts
 

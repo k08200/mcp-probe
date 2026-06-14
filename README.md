@@ -207,7 +207,8 @@ Supported assertions:
 
 Use `retry` for transient downstream failures only. Retry attempts are recorded
 in JSON output and receipt artifacts so flaky dependencies are visible instead
-of silently hidden.
+of silently hidden. With `--github-summary`, retried tool calls are also
+surfaced in the Actions job summary as retry receipts.
 
 ## Doctor
 
