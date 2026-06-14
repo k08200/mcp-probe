@@ -33,6 +33,26 @@ describe('github reporter', () => {
     expect(summary).toContain('read_file');
   });
 
+  it('surfaces retry receipts in a single github summary', () => {
+    const summary = buildGithubSummary(makeReport({
+      toolCallResults: [
+        {
+          tool: 'flaky_read',
+          status: 'pass',
+          latencyMs: 20,
+          source: 'sidecar',
+          attempts: [
+            { attempt: 1, status: 'fail', latencyMs: 5, error: '503 Service Unavailable' },
+            { attempt: 2, status: 'pass', latencyMs: 7 },
+          ],
+        },
+      ],
+    }));
+
+    expect(summary).toContain('### Retry Receipts');
+    expect(summary).toContain('| PASS | flaky_read | sidecar | 1 FAIL (5ms): 503 Service Unavailable<br>2 PASS (7ms) | 20ms |');
+  });
+
   it('builds annotations for failing checks and tool calls', () => {
     const annotations = buildGithubAnnotations(makeReport({
       overallStatus: 'fail',
@@ -109,7 +129,25 @@ describe('github reporter', () => {
       timestamp: '2026-05-17T00:00:00.000Z',
       overallStatus: 'warn',
       servers: [
-        { name: 'memory', report: makeReport({ target: '@memory', overallStatus: 'pass' }) },
+        {
+          name: 'memory',
+          report: makeReport({
+            target: '@memory',
+            overallStatus: 'pass',
+            toolCallResults: [
+              {
+                tool: 'flaky_read',
+                status: 'pass',
+                latencyMs: 20,
+                source: 'sidecar',
+                attempts: [
+                  { attempt: 1, status: 'fail', latencyMs: 5, error: '503 Service Unavailable' },
+                  { attempt: 2, status: 'pass', latencyMs: 7 },
+                ],
+              },
+            ],
+          }),
+        },
         {
           name: 'datadog',
           report: makeReport({
@@ -126,6 +164,7 @@ describe('github reporter', () => {
 
     expect(summary).toContain('## mcp-probe batch: mcp-probe.config.json');
     expect(summary).toContain('| WARN | datadog | https://mcp.example.com/mcp | 1 | 150ms |');
+    expect(summary).toContain('| PASS | memory | flaky_read | sidecar | 1 FAIL (5ms): 503 Service Unavailable<br>2 PASS (7ms) | 20ms |');
     expect(summary).toContain('### datadog');
     expect(summary).not.toContain('### memory');
   });

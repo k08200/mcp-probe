@@ -11,6 +11,7 @@ import { writeReceiptFile } from './reporters/receipt.js';
 import { initProject } from './init.js';
 import { runDoctor } from './doctor.js';
 import { exitCodeForStatus } from './exit-code.js';
+import { buildTrendReport, renderTrendMarkdown, renderTrendTerminal, writeTrendDashboard } from './trends.js';
 import { VERSION } from './version.js';
 import type { TransportMode } from './types.js';
 
@@ -194,6 +195,42 @@ program
       console.log('');
     }
     process.exit(exitCodeForStatus(report.overallStatus, Boolean(opts.failOnWarn)));
+  });
+
+program
+  .command('trends')
+  .description('aggregate retry receipts from mcp-probe JSON artifacts')
+  .argument('[paths...]', 'receipt files or directories to include')
+  .option('--receipt <path>', 'receipt file or directory to include', collect, [])
+  .option('--dashboard-file <path>', 'write a standalone HTML retry trend dashboard')
+  .option('-o, --output <format>', 'output format: terminal | json | markdown', 'terminal')
+  .action((paths: string[], opts: {
+    receipt: string[];
+    dashboardFile?: string;
+    output: string;
+  }) => {
+    const output = argValue('--output', '-o') ?? opts.output ?? 'terminal';
+    if (!['terminal', 'json', 'markdown'].includes(output)) {
+      console.error('Output format must be "terminal", "json", or "markdown".');
+      process.exit(1);
+    }
+
+    const inputs = [...paths, ...opts.receipt];
+    try {
+      const report = buildTrendReport(inputs.length > 0 ? inputs : ['mcp-probe.receipt.json']);
+      if (opts.dashboardFile) writeTrendDashboard(report, opts.dashboardFile);
+
+      if (output === 'json') {
+        process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+      } else if (output === 'markdown') {
+        process.stdout.write(renderTrendMarkdown(report));
+      } else {
+        process.stdout.write(renderTrendTerminal(report));
+      }
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
   });
 
 program

@@ -3,6 +3,10 @@ import { redactText } from '../redact.js';
 import type { BatchReport, CheckItem, CheckReport, CheckStatus, ToolCallResult } from '../types.js';
 
 type AnyReport = CheckReport | BatchReport;
+type RetryReceiptRow = {
+  server?: string;
+  result: ToolCallResult;
+};
 
 const STATUS_ICON: Record<CheckStatus, string> = {
   pass: 'PASS',
@@ -65,6 +69,46 @@ function toolCallsTable(results: ToolCallResult[] | undefined): string {
   ].join('\n');
 }
 
+function retryReceiptRows(report: CheckReport, server?: string): RetryReceiptRow[] {
+  return (report.toolCallResults ?? [])
+    .filter((result) => (result.attempts?.length ?? 0) > 1)
+    .map((result) => ({ server, result }));
+}
+
+function attemptReceipt(result: ToolCallResult): string {
+  return (result.attempts ?? [])
+    .map((attempt) => {
+      const detail = `${attempt.attempt} ${STATUS_ICON[attempt.status]} (${attempt.latencyMs}ms)`;
+      return attempt.error ? `${detail}: ${attempt.error}` : detail;
+    })
+    .join('<br>');
+}
+
+function retryReceiptsTable(rows: RetryReceiptRow[], includeServer: boolean): string {
+  if (rows.length === 0) return '';
+  const header = includeServer
+    ? ['Status', 'Server', 'Tool', 'Source', 'Attempts', 'Latency']
+    : ['Status', 'Tool', 'Source', 'Attempts', 'Latency'];
+
+  return [
+    '',
+    '### Retry Receipts',
+    '',
+    row(header),
+    row(header.map(() => '---')),
+    ...rows.map(({ server, result }) => {
+      const values = [
+        STATUS_ICON[result.status],
+        result.tool,
+        result.source,
+        attemptReceipt(result),
+        `${result.latencyMs}ms`,
+      ];
+      return row(includeServer ? [values[0], server, ...values.slice(1)] : values);
+    }),
+  ].join('\n');
+}
+
 function singleSummary(report: CheckReport): string {
   const lines = [
     `## mcp-probe: ${redactText(report.target)}`,
@@ -77,6 +121,9 @@ function singleSummary(report: CheckReport): string {
 
   const toolCalls = toolCallsTable(report.toolCallResults);
   if (toolCalls) lines.push(toolCalls);
+
+  const retryReceipts = retryReceiptsTable(retryReceiptRows(report), false);
+  if (retryReceipts) lines.push(retryReceipts);
 
   return lines.join('\n') + '\n';
 }
@@ -103,6 +150,12 @@ function batchSummary(report: BatchReport): string {
       `${server.report.totalLatencyMs}ms`,
     ])),
   ];
+
+  const retryReceipts = retryReceiptsTable(
+    report.servers.flatMap((server) => retryReceiptRows(server.report, server.name)),
+    true
+  );
+  if (retryReceipts) lines.push(retryReceipts);
 
   for (const server of report.servers) {
     if (server.report.overallStatus === 'pass') continue;

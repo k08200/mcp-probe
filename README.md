@@ -19,6 +19,7 @@ An MCP server can start, advertise a clean schema, and still fail every real too
 - contract assertions for result shape, JSON Schema, row limits, stable error codes, and leak checks
 - GitHub Actions summaries and machine-readable JSON output
 - JSON receipt artifacts for independent CI evidence
+- retry trend summaries and an HTML dashboard from receipt history
 
 ## Tested Servers
 
@@ -100,6 +101,9 @@ mcp-probe --config mcp-probe.config.json
 
 # Persist an independent readiness receipt artifact
 mcp-probe --config mcp-probe.config.json --receipt-file mcp-probe.receipt.json
+
+# Aggregate retry receipts into a PR-ready summary and dashboard
+mcp-probe trends ./receipts --dashboard-file mcp-probe-trends.html -o markdown
 
 # Call tools, not just tools/list
 mcp-probe @scope/server --probe-tools
@@ -207,7 +211,23 @@ Supported assertions:
 
 Use `retry` for transient downstream failures only. Retry attempts are recorded
 in JSON output and receipt artifacts so flaky dependencies are visible instead
-of silently hidden.
+of silently hidden. With `--github-summary`, retried tool calls are also
+surfaced in the Actions job summary as retry receipts.
+
+## Retry Trends
+
+Use `trends` to aggregate one or more receipt files, or a directory of receipt
+artifacts, into flake trend output:
+
+```bash
+mcp-probe trends ./receipts --dashboard-file mcp-probe-trends.html -o markdown
+```
+
+The trend report groups retry receipts by day and by server/tool. Calls that
+pass after retry are counted as recovered, while calls that still finish as
+warnings or failures are counted as unresolved. Use `-o json` for automation,
+`-o markdown` for PR comments, or `--dashboard-file` to publish a standalone
+HTML artifact.
 
 ## Doctor
 
