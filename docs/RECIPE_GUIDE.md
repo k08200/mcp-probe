@@ -160,6 +160,21 @@ Upload `mcp-probe.receipt.json` as a CI artifact. Receipts should prove the
 probe ran without leaking tokens, private URLs, tenant IDs, customer data,
 email subjects, row contents, or stack traces with internals.
 
+## Track retry trends
+
+Store receipt artifacts from repeated CI runs, then aggregate them:
+
+```bash
+npx @k08200/mcp-probe@latest trends ./receipts \
+  --dashboard-file mcp-probe-trends.html \
+  -o markdown
+```
+
+The markdown output is suitable for PR comments or scheduled reports. The HTML
+dashboard groups retry receipts by day and by server/tool so recovered
+transients and unresolved downstream failures can be tracked separately over
+time.
+
 ## Redaction checklist
 
 Before opening an issue or PR, remove:
